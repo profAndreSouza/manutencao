@@ -1,113 +1,76 @@
-# UniSENAI - Sistema de Gestão de Manutenção & Incidentes
+# UniSENAI - Sistema de Gestão de Manutenção & Ocorrências de Equipamentos
 
-Sistema completo em **React (Next.js App Router)** integrado com banco de dados **Turso (LibSQL)** e preparado para deploy instantâneo na **Vercel**, desenvolvido com a identidade visual e padrão estético do **UniSENAI SP (Campus Sorocaba)**, referenciada a partir do projeto `site-mostra`.
-
----
-
-## 🚀 Tecnologias
-
-- **Frontend & Backend**: React 19 + Next.js (App Router com Serverless Route Handlers)
-- **Banco de Dados**: [Turso](https://turso.tech) (SQLite distribuído na edge via `@libsql/client`) com fallback automático para SQLite local (`file:local.db`)
-- **Estilização**: Tailwind CSS com paleta institucional UniSENAI (Vermelho SENAI `#b91c1c`, neutros limpos, badges operacionais e tipografia Inter/Space Grotesk)
-- **Ícones**: Lucide React
-- **Hospedagem**: Vercel (zero-configuração)
+Sistema web em **React 19 + Next.js (App Router)** com banco de dados **Turso (LibSQL)** e hospedagem na **Vercel**, desenhado sob medida para atender o procedimento operacional padrão do **UniSENAI SP (Campus Sorocaba)**, utilizando como referência estética o projeto `site-mostra`.
 
 ---
 
-## 🎯 Principais Funcionalidades
+## 👥 Usuários Demo Disponíveis (Alternância em 1 Clique no Cabeçalho)
 
-### 1. 💻 Foco Especial em Notebooks (Carrinhos Móveis e Reserva Docente)
-- **Gestão por Carrinho**: Visualização organizada por Carrinho A (Lab Informática), Carrinho B (Maker) e Armário Docente.
-- **Rastreamento de Hardware**:
-  - Patrimônio SENAI individual (`NOTE-SEN-XXXX`)
-  - Vaga / Slot no carrinho móvel
-  - Marca, modelo, processador, memória RAM e SSD
-  - Identificação de tag da fonte/carregador (`FNT-SEN-XXXX`)
-  - **Saúde da bateria** (% com alerta visual de desgaste)
-- **Abertura Expressa**: Botão de 1 clique para abrir chamado já pré-preenchendo a vaga e o patrimônio do notebook.
-- **Matriz de Status**: Modos de exibição em **Grade de Slots** ou **Tabela detalhada**.
+1. **Professor Demo: Prof. Carlos Roberto**
+   - **Perfil**: Docente & Coordenador Técnico (Atuação nos períodos Diurno e Noturno).
+   - **Funcionalidades**: Acesso a ocorrências de todos os períodos (Manhã, Tarde e Noite), cruzamento de reincidências por notebook, identificação da turma/usuário anterior sem conflitos entre turnos e **emissão de Orientações Formais por Escrito** com modelo imprimível para alunos do CAI, CT, CST e FIC.
 
-### 2. 🚨 Registro e Ciclo de Vida de Incidentes (Chamados)
-- **Presets de 1 clique** para falhas recorrentes:
-  - Bateria não carrega / estufada
-  - Teclado com teclas travando
-  - Tela LCD trincada / com linha vertical
-  - Carregador com mau contato
-  - Lentidão / reinstalação de SO
-  - Projetor sem sinal HDMI / ar-condicionado pingando água
-- **Classificação por Severidade**: Crítica (com alerta pulsante), Alta, Média e Baixa.
-- **Painel de Atendimento Técnico**:
-  - Mudança de status (*Aberto*, *Em Análise*, *Em Atendimento*, *Aguardando Peça*, *Resolvido*, *Fechado*).
-  - Atribuição de técnico responsável.
-  - Laudo técnico e peças de reposição trocadas.
-  - Linha do tempo de histórico de intervenções com auditoria de data e autor.
-  - Ao marcar como **Resolvido**, o status do equipamento/notebook retorna automaticamente para **Disponível**.
-
-### 3. 🏫 Salas de Aula & Laboratórios
-- Monitoramento de ambientes (Laboratórios de Informática 01 e 02, Lab Maker, Mecatrônica, Salas de Aula e Auditório Principal).
-- Alertas de interdição e chamados pendentes por sala.
-
-### 4. 🛠️ Equipamentos Gerais
-- Controle de impressoras 3D, projetores laser, aparelhos de ar-condicionado e switches de rede.
-
-### 5. 📊 Indicadores e Exportação
-- KPIs de disponibilidade de frota (ex: 94.2% disponível).
-- Relatórios em **CSV** com suporte a Excel (UTF-8 BOM).
+2. **Aluno Demo: Lucas Silva**
+   - **Perfil**: Aluno do Curso Superior de Tecnologia em ADS (Período Noturno).
+   - **Funcionalidades**: Botão **"Na Retirada"** (substituto do formulário do Microsoft Forms). Permite ao aluno, ao retirar o notebook da vaga numerada no início da aula, registrar imediatamente avarias pré-existentes (tecla solta, tela trincada, carregador ausente), gerando comprovante oficial que resguarda a turma e notifica os professores.
 
 ---
 
-## 🛠️ Como Executar Localmente
+## 🏫 Mapeamento dos Ambientes e Inventário de Equipamentos
 
-1. Navegue até a pasta do projeto:
+| Ambiente | Tipo | Equipamentos & Capacidade |
+| :--- | :--- | :--- |
+| **Sala 1** | Sala de Aula / Carrinho Móvel | **32 Notebooks** Lenovo ThinkPad E14 (`NOTE-S01-01` a `32`) com vagas numeradas e fontes |
+| **Sala 2** | Sala de Aula / Carrinho Móvel | **32 Notebooks** Lenovo ThinkPad E14 (`NOTE-S02-01` a `32`) com vagas numeradas e fontes |
+| **Sala 3** | Sala de Aula Teórica | Projetor interativo, lousa e climatização (35 alunos) |
+| **Sala 4** | Sala de Aula / Carrinho Móvel | **32 Notebooks** Dell Latitude 3420 (`NOTE-S04-01` a `32`) com vagas numeradas e fontes |
+| **Sala 5** | Sala de Aula / Carrinho Móvel | **32 Notebooks** Dell Latitude 3420 (`NOTE-S05-01` a `32`) com vagas numeradas e fontes |
+| **Informática 4** | Laboratório de Computação | **21 Computadores Desktop** Core i7, 32GB RAM (`PC-INF4-01` a `21`) |
+| **Laboratório CNC** | Laboratório de Mecânica | **21 Computadores** CAD/CAM (`PC-CNC-01` a `21`) e máquinas de usinagem CNC |
+| **Laboratório de Projetos** | Laboratório Maker & Eletrônica | **10 Computadores** (`PC-PROJ-01` a `10`) + **Multímetros Digitais Minipa/Hikari** + **Fontes de Bancada DC Ajustáveis** + **Caixas de Kits Didáticos Arduino/ESP32** |
+
+---
+
+## 🎯 Solução para o Acompanhamento entre Períodos (Diurno x Noturno)
+
+> *"A proposta é simples: sempre que um aluno retirar um equipamento e identificar alguma irregularidade, deverá registrar a ocorrência, informando o número do notebook, a sala, a turma e o problema encontrado.*
+> *É importante que os professores de todos os períodos tenham acesso aos registros, permitindo acompanhar as ocorrências, identificar reincidências e, quando possível, verificar os responsáveis. Dessa forma, poderemos realizar orientações formais, inclusive por escrito, tanto para alunos do CAI/CT/FIC quanto do CST.*
+> *Quero destacar que a intenção não é colocar os professores do período diurno contra os do noturno, tampouco atribuir responsabilidades de forma generalizada. Pelo contrário, precisamos encontrar um denominador comum e estabelecer um procedimento de trabalho que atenda adequadamente a todos os usuários da escola."*
+
+### Como o sistema atende esse procedimento:
+1. **Fim do registro informal / Substituto do Forms**: O aluno clica em **"Na Retirada"**, seleciona sua sala (1, 2, 4 ou 5) e o número do notebook (1 a 32), assinala o problema e envia em menos de 30 segundos.
+2. **Rastreabilidade sem atrito**: O sistema cruza quem usou o notebook anteriormente (Ex: Turma da tarde do CAI Usinagem x Turma da noite do CST ADS), permitindo que os professores identifiquem a origem real do dano.
+3. **Emissão de Orientação Formal por Escrito**: O professor abre o chamado na aba **"Acompanhamento (Turnos)"** e gera com 1 clique o **Termo de Orientação Pedagógica Formal**, pronto para impressão e assinatura de representantes de turma ou alunos envolvidos.
+
+---
+
+## 🚀 Como Executar Localmente
+
+1. Entre na pasta:
    ```bash
-   cd manutencao-unisenai
+   cd c:\projetos\unisenai\manutencao-unisenai
    ```
 
-2. Instale as dependências (se ainda não tiver instalado):
-   ```bash
-   npm install
-   ```
-
-3. Inicie o servidor de desenvolvimento:
+2. Inicie o servidor:
    ```bash
    npm run dev
    ```
 
-4. Abra no navegador: [http://localhost:3000](http://localhost:3000)
+3. Abra no navegador: **[http://localhost:3000](http://localhost:3000)**
 
-*Nota: Em ambiente local, se as variáveis do Turso não estiverem configuradas, o sistema inicializa automaticamente um banco SQLite local (`file:local.db`) e popula dados reais de exemplo (notebooks, salas e chamados).*
+*Em desenvolvimento local sem variáveis de ambiente, o sistema utiliza automaticamente o banco local SQLite (`local.db`) pré-populado com os 128 notebooks, 52 computadores, multímetros, fontes e kits didáticos.*
 
 ---
 
-## ☁️ Como Configurar o Turso Database
+## ☁️ Deploy na Vercel com Turso Database
 
-1. Crie uma conta gratuita em [https://turso.tech](https://turso.tech)
-2. Crie um banco de dados:
+1. Crie seu banco no Turso:
    ```bash
    turso db create unisenai-manutencao
-   ```
-3. Obtenha a URL de conexão:
-   ```bash
    turso db show --url unisenai-manutencao
-   # Exemplo: libsql://unisenai-manutencao-andre.turso.io
-   ```
-4. Gere o token de autenticação:
-   ```bash
    turso db tokens create unisenai-manutencao
    ```
-5. Crie um arquivo `.env.local` na raiz com:
-   ```env
-   TURSO_DATABASE_URL=libsql://unisenai-manutencao-andre.turso.io
-   TURSO_AUTH_TOKEN=seu_token_jwt_aqui
-   ```
-
----
-
-## ▲ Deploy na Vercel
-
-1. Envie o código para o seu repositório Git (GitHub/GitLab).
-2. Na [Vercel](https://vercel.com), clique em **Add New Project** e selecione o repositório `manutencao-unisenai`.
-3. Em **Environment Variables**, adicione:
-   - `TURSO_DATABASE_URL`: URL do seu banco Turso
-   - `TURSO_AUTH_TOKEN`: Token gerado pelo Turso
-4. Clique em **Deploy**. A Vercel detectará o Next.js automaticamente e fará o deploy com funções Serverless na Edge!
+2. Na [Vercel](https://vercel.com), importe o repositório e configure em **Environment Variables**:
+   - `TURSO_DATABASE_URL`: `libsql://unisenai-manutencao.turso.io`
+   - `TURSO_AUTH_TOKEN`: seu token de autenticação
+3. Deploy imediato com suporte a Serverless Edge Handlers!

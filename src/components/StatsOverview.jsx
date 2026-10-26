@@ -13,13 +13,20 @@ import {
   Flame,
   ChevronRight,
   Sparkles,
+  ShieldCheck,
+  Sun,
+  Moon,
+  Users,
+  Cpu,
 } from "lucide-react";
 import { formatTimeAgo } from "@/lib/utils";
 
 export default function StatsOverview({
   stats,
+  currentUser,
   onNavigateTab,
   onOpenNewIncident,
+  onOpenStudentIntake,
   onSelectIncident,
 }) {
   const incidents = stats?.incidents || {
@@ -31,15 +38,17 @@ export default function StatsOverview({
   };
 
   const notebooks = stats?.notebooks || {
-    total: 0,
-    operacionais: 0,
-    defeito: 0,
-    availabilityRate: 100,
+    total: 128,
+    operacionais: 124,
+    defeito: 4,
+    availabilityRate: 96.8,
   };
 
-  const rooms = stats?.rooms || { total: 0, com_interdicao: 0 };
-  const equipment = stats?.equipment || { total: 0, em_manutencao: 0 };
+  const rooms = stats?.rooms || { total: 8, com_interdicao: 1 };
+  const equipment = stats?.equipment || { total: 63, em_manutencao: 3 };
   const recentIncidents = stats?.recentIncidents || [];
+
+  const isProfessor = currentUser?.role === "professor";
 
   const getPriorityBadge = (priority) => {
     switch (priority) {
@@ -109,7 +118,7 @@ export default function StatsOverview({
 
   return (
     <div className="space-y-6">
-      {/* Banner de Boas-vindas / Alerta Operacional */}
+      {/* Banner de Boas-vindas / Alerta Operacional com Contexto do Usuário Demo */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 text-white rounded-lg p-6 shadow-sm border border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -118,33 +127,57 @@ export default function StatsOverview({
                 UniSENAI SP
               </span>
               <span className="text-xs text-slate-300 font-medium">
-                Campus Sorocaba &bull; Monitoramento Ativo
+                Sessão Ativa: <strong className="text-white">{currentUser.name}</strong> ({currentUser.badge})
               </span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white font-heading">
-              Painel Integrado de Manutenção e Suporte
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-heading">
+              Gestão de Ocorrências & Procedimento de Trabalho
             </h1>
-            <p className="text-sm text-slate-300 max-w-2xl">
-              Gerencie incidentes em tempo real, acompanhe a disponibilidade da frota de notebooks nos carrinhos móveis e garanta o funcionamento das salas de aula e laboratórios.
+            <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
+              Sistema unificado para acompanhamento de irregularidades nos notebooks das Salas 1, 2, 4 e 5 (128 notebooks), Informática 4 (21 computadores), CNC (21 computadores) e Projetos (10 computadores + multímetros, fontes e kits didáticos).
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Botão de Registro na Retirada (Substituindo o antigo Forms) */}
             <button
-              onClick={() => onOpenNewIncident("notebook")}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white rounded-sm shadow-sm transition-colors cursor-pointer"
+              onClick={onOpenStudentIntake}
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white rounded-sm shadow-md transition-all cursor-pointer active:scale-98"
             >
-              <Laptop className="w-4 h-4" />
-              <span>Incidente em Notebook</span>
+              <ShieldCheck className="w-4 h-4" />
+              <span>Registrar na Retirada</span>
             </button>
-            <button
-              onClick={() => onOpenNewIncident("sala")}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-sm transition-colors cursor-pointer"
-            >
-              <DoorOpen className="w-4 h-4" />
-              <span>Manutenção de Sala</span>
-            </button>
+
+            {isProfessor && (
+              <button
+                onClick={() => onNavigateTab("turnos")}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-sm transition-colors cursor-pointer"
+              >
+                <Users className="w-4 h-4" />
+                <span>Acompanhamento Diurno / Noturno</span>
+              </button>
+            )}
           </div>
         </div>
+      </div>
+
+      {/* Alerta Institucional Educativo */}
+      <div className="bg-amber-50/90 border border-amber-300/80 rounded-lg p-4 text-xs text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-start gap-2.5">
+          <ShieldCheck className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+          <div className="leading-relaxed">
+            <strong className="font-bold text-amber-900 block mb-0.5">
+              Procedimento de Resguardo e Alinhamento Pedagógico:
+            </strong>
+            Ao retirar um notebook no início da aula, o aluno deve verificar teclas, tela e carregador. Registrando a ocorrência na hora, você resguarda sua turma e permite que os professores realizem orientações formais por escrito para turmas do CAI, CT, CST e FIC.
+          </div>
+        </div>
+        <button
+          onClick={onOpenStudentIntake}
+          className="px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider bg-amber-700 hover:bg-amber-800 text-white rounded-xs shrink-0 self-end sm:self-auto cursor-pointer"
+        >
+          Check-in de Retirada
+        </button>
       </div>
 
       {/* KPI Cards Grid */}
@@ -156,7 +189,7 @@ export default function StatsOverview({
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Frota de Notebooks
+              Frota de Notebooks (Salas 1,2,4,5)
             </span>
             <div className="p-2 rounded-md bg-red-50 text-red-700 group-hover:scale-110 transition-transform">
               <Laptop className="w-5 h-5" />
@@ -172,22 +205,16 @@ export default function StatsOverview({
           </div>
           <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-2">
             <div
-              className={`h-2 rounded-full transition-all duration-500 ${
-                notebooks.availabilityRate >= 90
-                  ? "bg-emerald-500"
-                  : notebooks.availabilityRate >= 75
-                  ? "bg-amber-500"
-                  : "bg-red-500"
-              }`}
+              className="h-2 rounded-full bg-emerald-500 transition-all duration-500"
               style={{ width: `${notebooks.availabilityRate}%` }}
             ></div>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
             <span className="text-red-700 font-semibold flex items-center gap-1">
-              {notebooks.defeito} em reparo/defeito
+              {notebooks.defeito} em reparo/avaria
             </span>
             <span className="text-slate-400 group-hover:text-red-700 transition-colors flex items-center">
-              Ver carrinhos <ChevronRight className="w-3.5 h-3.5" />
+              Ver salas <ChevronRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
@@ -210,67 +237,60 @@ export default function StatsOverview({
               {incidents.abertos}
             </div>
             <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-              {incidents.em_andamento} em atendimento
+              {incidents.em_andamento} em triagem
             </span>
           </div>
           <p className="text-xs text-slate-500 mb-3">
-            Aguardando triagem técnica inicial
+            Ocorrências registradas na retirada ou aula
           </p>
           <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
             <span>Total histórico: {incidents.total}</span>
             <span className="text-slate-400 group-hover:text-amber-700 transition-colors flex items-center">
-              Gerenciar <ChevronRight className="w-3.5 h-3.5" />
+              Acompanhar <ChevronRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
 
-        {/* Card 3: Chamados Críticos */}
+        {/* Card 3: Computadores de Laboratórios */}
         <div
-          onClick={() => onNavigateTab("incidents")}
-          className="bg-white rounded-lg p-5 border border-slate-200 shadow-xs hover:border-red-400 hover:shadow-md transition-all cursor-pointer group"
+          onClick={() => onNavigateTab("equipment")}
+          className="bg-white rounded-lg p-5 border border-slate-200 shadow-xs hover:border-slate-400 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Incidentes Críticos
+              Computadores & Projetos
             </span>
-            <div className="p-2 rounded-md bg-red-100 text-red-700 group-hover:scale-110 transition-transform">
-              <Flame className="w-5 h-5" />
+            <div className="p-2 rounded-md bg-slate-100 text-slate-700 group-hover:scale-110 transition-transform">
+              <Cpu className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline justify-between mb-1">
-            <div className="text-3xl font-extrabold text-red-700 tracking-tight font-heading">
-              {incidents.criticos}
+            <div className="text-3xl font-extrabold text-slate-900 tracking-tight font-heading">
+              52 PCs
             </div>
-            {incidents.criticos > 0 ? (
-              <span className="text-[11px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping"></span>
-                Urgência Máxima
-              </span>
-            ) : (
-              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                Sem bloqueios
-              </span>
-            )}
+            <span className="text-xs font-semibold text-slate-600">
+              Inf 4, CNC e Projetos
+            </span>
           </div>
           <p className="text-xs text-slate-500 mb-3">
-            Requerem intervenção imediata da equipe
+            + Multímetros, Fontes e Kits Didáticos
           </p>
           <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
-            <span>Resolvidos: {incidents.resolvidos}</span>
-            <span className="text-slate-400 group-hover:text-red-700 transition-colors flex items-center">
-              Filtrar <ChevronRight className="w-3.5 h-3.5" />
+            <span>{equipment.total} ativos totais</span>
+            <span className="text-slate-400 group-hover:text-slate-900 transition-colors flex items-center">
+              Ver bancadas <ChevronRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
 
-        {/* Card 4: Salas & Equipamentos */}
+        {/* Card 4: Salas Mapeadas */}
         <div
           onClick={() => onNavigateTab("rooms")}
           className="bg-white rounded-lg p-5 border border-slate-200 shadow-xs hover:border-slate-400 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Salas & Infraestrutura
+              Salas & Laboratórios
             </span>
             <div className="p-2 rounded-md bg-slate-100 text-slate-700 group-hover:scale-110 transition-transform">
               <DoorOpen className="w-5 h-5" />
@@ -278,19 +298,19 @@ export default function StatsOverview({
           </div>
           <div className="flex items-baseline justify-between mb-1">
             <div className="text-3xl font-extrabold text-slate-900 tracking-tight font-heading">
-              {rooms.total}
+              {rooms.total} Ambientes
             </div>
             <span className="text-xs font-semibold text-slate-600">
-              {equipment.total} equipamentos
+              1, 2, 3, 4, 5, Inf 4, Proj, CNC
             </span>
           </div>
           <p className="text-xs text-slate-500 mb-3">
             {rooms.com_interdicao > 0
-              ? `${rooms.com_interdicao} sala(s) com atenção necessária`
-              : "Todas as salas 100% operacionais"}
+              ? `${rooms.com_interdicao} ambiente com ocorrência ativa`
+              : "Ambientes 100% operacionais"}
           </p>
           <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
-            <span>{equipment.em_manutencao} em manutenção</span>
+            <span>Infraestrutura predial</span>
             <span className="text-slate-400 group-hover:text-slate-900 transition-colors flex items-center">
               Ver salas <ChevronRight className="w-3.5 h-3.5" />
             </span>
@@ -298,97 +318,119 @@ export default function StatsOverview({
         </div>
       </div>
 
-      {/* Destaque para Frota de Notebooks (O Foco Principal Solicitado) */}
+      {/* Destaque para as Salas com Carrinhos de 32 Notebooks */}
       <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
           <div>
             <div className="flex items-center gap-2">
               <Laptop className="w-5 h-5 text-red-700" />
               <h2 className="text-base font-bold uppercase tracking-wide text-slate-900 font-heading">
-                Gestão dos Carrinhos de Notebooks
+                Status das Salas com Carrinhos Móveis (32 Notebooks cada)
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Controle rápido de status, slots e integridade dos notebooks por carrinho móvel
+              Salas 1, 2, 4 e 5: Total de 128 notebooks compartilhados entre os períodos matutino, vespertino e noturno.
             </p>
           </div>
           <button
             onClick={() => onNavigateTab("notebooks")}
             className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-red-700 hover:text-red-800 transition-colors cursor-pointer self-start sm:self-auto"
           >
-            <span>Ver matriz completa de vagas</span>
+            <span>Ver matriz completa de vagas (1 a 32)</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Carts preview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-          {/* Carrinho A */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+          {/* Sala 1 */}
           <div
             onClick={() => onNavigateTab("notebooks")}
             className="border border-slate-200 hover:border-red-400 rounded-md p-4 bg-slate-50/50 hover:bg-white transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-bold uppercase text-slate-800 tracking-wide">
-                Carrinho Móvel A
+                Sala 1
               </h3>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
-                Lab Informática
+                Lenovo ThinkPad
               </span>
             </div>
-            <p className="text-xs text-slate-500 mb-3">20x Lenovo ThinkPad E14 Gen 4</p>
+            <p className="text-xs text-slate-500 mb-2">Carrinho Móvel &bull; 32 Notebooks</p>
             <div className="flex items-center justify-between text-xs font-medium">
-              <span className="text-emerald-700 font-bold">18 Operacionais</span>
-              <span className="text-red-700 font-bold">2 Em Reparo</span>
+              <span className="text-emerald-700 font-bold">30 Operacionais</span>
+              <span className="text-red-700 font-bold">2 c/ Ocorrência</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
-              <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: "90%" }}></div>
+              <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: "93.7%" }}></div>
             </div>
           </div>
 
-          {/* Carrinho B */}
+          {/* Sala 2 */}
           <div
             onClick={() => onNavigateTab("notebooks")}
             className="border border-slate-200 hover:border-red-400 rounded-md p-4 bg-slate-50/50 hover:bg-white transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-bold uppercase text-slate-800 tracking-wide">
-                Carrinho Móvel B
+                Sala 2
+              </h3>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                Lenovo ThinkPad
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mb-2">Carrinho Móvel &bull; 32 Notebooks</p>
+            <div className="flex items-center justify-between text-xs font-medium">
+              <span className="text-emerald-700 font-bold">31 Operacionais</span>
+              <span className="text-amber-700 font-bold">1 Fonte Rompida</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
+              <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: "96.8%" }}></div>
+            </div>
+          </div>
+
+          {/* Sala 4 */}
+          <div
+            onClick={() => onNavigateTab("notebooks")}
+            className="border border-slate-200 hover:border-red-400 rounded-md p-4 bg-slate-50/50 hover:bg-white transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold uppercase text-slate-800 tracking-wide">
+                Sala 4
               </h3>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
-                Maker & Projetos
+                Dell Latitude
               </span>
             </div>
-            <p className="text-xs text-slate-500 mb-3">15x Dell Latitude 3420</p>
+            <p className="text-xs text-slate-500 mb-2">Carrinho Móvel &bull; 32 Notebooks</p>
             <div className="flex items-center justify-between text-xs font-medium">
-              <span className="text-emerald-700 font-bold">14 Operacionais</span>
-              <span className="text-amber-700 font-bold">1 Aguardando Peça</span>
+              <span className="text-emerald-700 font-bold">31 Operacionais</span>
+              <span className="text-red-700 font-bold">1 Linha LCD</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
-              <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: "93.3%" }}></div>
+              <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: "96.8%" }}></div>
             </div>
           </div>
 
-          {/* Reserva Docente */}
+          {/* Sala 5 */}
           <div
             onClick={() => onNavigateTab("notebooks")}
             className="border border-slate-200 hover:border-red-400 rounded-md p-4 bg-slate-50/50 hover:bg-white transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-bold uppercase text-slate-800 tracking-wide">
-                Armário Docente
+                Sala 5
               </h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                Professores
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                Dell Latitude
               </span>
             </div>
-            <p className="text-xs text-slate-500 mb-3">5x Lenovo ThinkPad L14 Gen 3</p>
+            <p className="text-xs text-slate-500 mb-2">Carrinho Móvel &bull; 32 Notebooks</p>
             <div className="flex items-center justify-between text-xs font-medium">
-              <span className="text-emerald-700 font-bold">5 Operacionais</span>
-              <span className="text-slate-500">100% Disponibilidade</span>
+              <span className="text-emerald-700 font-bold">31 Operacionais</span>
+              <span className="text-amber-700 font-bold">1 Imagem SO</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
-              <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: "100%" }}></div>
+              <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: "96.8%" }}></div>
             </div>
           </div>
         </div>
@@ -399,10 +441,10 @@ export default function StatsOverview({
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div>
             <h2 className="text-base font-bold uppercase tracking-wide text-slate-900 font-heading">
-              Últimos Chamados Registrados
+              Últimas Ocorrências Registradas
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Incidentes em andamento ou recentemente submetidos por professores e alunos
+              Incidentes reportados na retirada ou identificados pelos docentes
             </p>
           </div>
           <button
@@ -416,7 +458,7 @@ export default function StatsOverview({
         <div className="divide-y divide-slate-100 mt-2">
           {recentIncidents.length === 0 ? (
             <p className="py-6 text-center text-xs text-slate-500">
-              Nenhum chamado registrado no momento.
+              Nenhuma ocorrência registrada no momento.
             </p>
           ) : (
             recentIncidents.map((inc) => (

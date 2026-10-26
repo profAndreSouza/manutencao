@@ -62,6 +62,7 @@ export async function PATCH(request, { params }) {
       author_name = "Técnico de Suporte",
       author_role = "tecnico",
       priority,
+      orientacao_formal,
     } = body;
 
     const newStatus = status || current.status;
@@ -69,13 +70,31 @@ export async function PATCH(request, { params }) {
     const newSolution = solution_notes !== undefined ? solution_notes : current.solution_notes;
     const newPriority = priority || current.priority;
     const resolvedAt = (newStatus === "resolvido" && !current.resolved_at) ? now : current.resolved_at;
+    const newOrientacao = orientacao_formal !== undefined ? orientacao_formal : current.orientacao_formal;
+    const orientacaoDate = orientacao_formal ? now : current.orientacao_gerada_em;
 
     await db.execute({
       sql: `UPDATE incidents 
-            SET status = ?, assigned_to = ?, solution_notes = ?, priority = ?, updated_at = ?, resolved_at = ?
+            SET status = ?, assigned_to = ?, solution_notes = ?, priority = ?, orientacao_formal = ?, orientacao_gerada_em = ?, updated_at = ?, resolved_at = ?
             WHERE id = ?`,
-      args: [newStatus, newAssigned, newSolution, newPriority, now, resolvedAt, current.id],
+      args: [newStatus, newAssigned, newSolution, newPriority, newOrientacao, orientacaoDate, now, resolvedAt, current.id],
     });
+
+    // Se houve emissão de orientação formal por escrito pelo professor
+    if (orientacao_formal && orientacao_formal !== current.orientacao_formal) {
+      await db.execute({
+        sql: `INSERT INTO incident_history (id, incident_id, author_name, author_role, action_type, message, created_at)
+              VALUES (?, ?, ?, ?, 'orientacao_formal', ?, ?)`,
+        args: [
+          `hist-${Date.now()}-orient`,
+          current.id,
+          author_name,
+          author_role,
+          `Orientação Formal por Escrito registrada pelo docente: "${orientacao_formal}"`,
+          now,
+        ],
+      });
+    }
 
     // Se houve mudança de status, registrar no histórico
     if (status && status !== current.status) {
@@ -132,7 +151,7 @@ export async function PATCH(request, { params }) {
           sql: `UPDATE notebooks SET status = 'disponivel', notes = 'Manutenção concluída via chamado ' || ? WHERE id = ? OR asset_tag = ?`,
           args: [current.code, current.target_id, current.target_id],
         });
-      } else if (current.target_type === "equipamento") {
+      } else if (current.target_type === "equipamento" || current.target_type === "computador") {
         await db.execute({
           sql: `UPDATE equipment SET status = 'disponivel' WHERE id = ? OR asset_tag = ?`,
           args: [current.target_id, current.target_id],

@@ -7,13 +7,21 @@ import NotebooksView from "@/components/NotebooksView";
 import IncidentsView from "@/components/IncidentsView";
 import RoomsView from "@/components/RoomsView";
 import EquipmentView from "@/components/EquipmentView";
+import TeacherShiftsView from "@/components/TeacherShiftsView";
 import NewIncidentModal from "@/components/NewIncidentModal";
 import IncidentDetailModal from "@/components/IncidentDetailModal";
 import NewNotebookModal from "@/components/NewNotebookModal";
+import StudentQuickIntakeModal from "@/components/StudentQuickIntakeModal";
+import TeacherOrientationModal from "@/components/TeacherOrientationModal";
+import { DEMO_USERS } from "@/lib/demoUsers";
 import { Database, ShieldCheck, CheckCircle2 } from "lucide-react";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
+
+  // Usuário Demo Ativo (Professor x Aluno)
+  const [currentUserKey, setCurrentUserKey] = useState("professor");
+  const currentUser = DEMO_USERS[currentUserKey];
 
   // Data states
   const [stats, setStats] = useState(null);
@@ -35,13 +43,16 @@ export default function Home() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const [isNewNotebookOpen, setIsNewNotebookOpen] = useState(false);
+  const [isStudentIntakeOpen, setIsStudentIntakeOpen] = useState(false);
+  const [isOrientationOpen, setIsOrientationOpen] = useState(false);
+  const [incidentForOrientation, setIncidentForOrientation] = useState(null);
 
   // Success toast notification
   const [toastMsg, setToastMsg] = useState("");
 
   const showToast = (msg) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(""), 4500);
+    setTimeout(() => setToastMsg(""), 5000);
   };
 
   // Carregar dados gerais
@@ -108,12 +119,23 @@ export default function Home() {
   };
 
   const handleSelectNotebook = (notebook) => {
-    // Ao clicar em detalhes do notebook, podemos abrir chamado ou filtrar
     handleOpenNewIncidentForNotebook(notebook);
   };
 
+  const handleOpenOrientationModal = (incident) => {
+    setIncidentForOrientation(incident);
+    setIsOrientationOpen(true);
+  };
+
   const handleIncidentCreated = (newIncident) => {
-    showToast(`Chamado ${newIncident.code} registrado com sucesso!`);
+    showToast(`Chamado ${newIncident.code} registrado com sucesso no Turso!`);
+    fetchAllData();
+  };
+
+  const handleStudentIntakeSuccess = (newIncident) => {
+    showToast(
+      `Protocolo ${newIncident.code} gerado! Sua turma está resguardada e os professores dos períodos foram notificados.`
+    );
     fetchAllData();
   };
 
@@ -127,21 +149,32 @@ export default function Home() {
     fetchAllData();
   };
 
+  const handleOrientationSuccess = () => {
+    showToast("Orientação formal por escrito gerada e vinculada ao chamado!");
+    fetchAllData();
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       {/* Toast Notification */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-md bg-slate-900 text-white shadow-xl border border-slate-700 animate-in slide-in-from-bottom-5 duration-200">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-md bg-slate-900 text-white shadow-xl border border-slate-700 animate-in slide-in-from-bottom-5 duration-200 max-w-md">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          <span className="text-xs font-semibold">{toastMsg}</span>
+          <span className="text-xs font-semibold leading-snug">{toastMsg}</span>
         </div>
       )}
 
-      {/* Header Principal UniSENAI */}
+      {/* Header Principal UniSENAI com User Switcher */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenNewIncident={() => handleOpenNewIncident("notebook")}
+        onOpenStudentIntake={() => setIsStudentIntakeOpen(true)}
+        currentUser={currentUser}
+        onSwitchUser={(role) => {
+          setCurrentUserKey(role);
+          showToast(`Sessão alternada para: ${DEMO_USERS[role].name} (${DEMO_USERS[role].badge})`);
+        }}
         notebooksDefectCount={stats?.notebooks?.defeito || 0}
         openIncidentsCount={stats?.incidents?.abertos || 0}
       />
@@ -151,8 +184,10 @@ export default function Home() {
         {activeTab === "dashboard" && (
           <StatsOverview
             stats={stats}
+            currentUser={currentUser}
             onNavigateTab={setActiveTab}
             onOpenNewIncident={handleOpenNewIncident}
+            onOpenStudentIntake={() => setIsStudentIntakeOpen(true)}
             onSelectIncident={handleSelectIncident}
           />
         )}
@@ -164,6 +199,7 @@ export default function Home() {
             isLoading={isLoading}
             onRefresh={fetchAllData}
             onOpenNewIncidentForNotebook={handleOpenNewIncidentForNotebook}
+            onOpenStudentIntakeForNotebook={() => setIsStudentIntakeOpen(true)}
             onOpenNewNotebookModal={() => setIsNewNotebookOpen(true)}
             onSelectNotebook={handleSelectNotebook}
           />
@@ -176,6 +212,15 @@ export default function Home() {
             onRefresh={fetchAllData}
             onSelectIncident={handleSelectIncident}
             onOpenNewIncident={() => handleOpenNewIncident("notebook")}
+          />
+        )}
+
+        {activeTab === "turnos" && (
+          <TeacherShiftsView
+            incidents={incidents}
+            notebooks={notebooks}
+            onSelectIncident={handleSelectIncident}
+            onOpenOrientationModal={handleOpenOrientationModal}
           />
         )}
 
@@ -198,7 +243,23 @@ export default function Home() {
         )}
       </main>
 
-      {/* Modal: Novo Chamado */}
+      {/* Modal: Formulário Rápido de Retirada do Aluno (Substitui o Forms) */}
+      <StudentQuickIntakeModal
+        isOpen={isStudentIntakeOpen}
+        onClose={() => setIsStudentIntakeOpen(false)}
+        onSuccess={handleStudentIntakeSuccess}
+        currentUser={currentUser}
+      />
+
+      {/* Modal: Emissão de Orientação Formal por Escrito (Para Professores) */}
+      <TeacherOrientationModal
+        incident={incidentForOrientation}
+        isOpen={isOrientationOpen}
+        onClose={() => setIsOrientationOpen(false)}
+        onSuccess={handleOrientationSuccess}
+      />
+
+      {/* Modal: Novo Chamado Geral */}
       <NewIncidentModal
         isOpen={isNewIncidentOpen}
         onClose={() => setIsNewIncidentOpen(false)}
@@ -210,7 +271,7 @@ export default function Home() {
         initialTargetItem={targetItemForNew}
       />
 
-      {/* Modal: Detalhes do Incidente & Atendimento */}
+      {/* Modal: Detalhes do Incidente & Atendimento Técnico */}
       <IncidentDetailModal
         incident={selectedIncident}
         isOpen={isDetailOpen}
@@ -244,7 +305,7 @@ export default function Home() {
             <span>&bull;</span>
             <div className="flex items-center gap-1 text-slate-600 font-medium">
               <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-              <span>Vercel Edge Ready</span>
+              <span>Procedimento Operacional Padrão Ativo</span>
             </div>
           </div>
         </div>

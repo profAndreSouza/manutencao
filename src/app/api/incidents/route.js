@@ -11,14 +11,16 @@ export async function GET(request) {
     const status = searchParams.get("status") || "";
     const priority = searchParams.get("priority") || "";
     const targetType = searchParams.get("target_type") || "";
+    const periodo = searchParams.get("periodo") || "";
+    const modalidade = searchParams.get("modalidade") || "";
 
     let sql = `SELECT * FROM incidents WHERE 1=1`;
     const args = [];
 
     if (search) {
-      sql += ` AND (title LIKE ? OR code LIKE ? OR description LIKE ? OR target_name LIKE ? OR requester_name LIKE ?)`;
+      sql += ` AND (title LIKE ? OR code LIKE ? OR description LIKE ? OR target_name LIKE ? OR requester_name LIKE ? OR turma LIKE ?)`;
       const term = `%${search}%`;
-      args.push(term, term, term, term, term);
+      args.push(term, term, term, term, term, term);
     }
 
     if (status && status !== "todos") {
@@ -34,6 +36,16 @@ export async function GET(request) {
     if (targetType && targetType !== "todos") {
       sql += ` AND target_type = ?`;
       args.push(targetType);
+    }
+
+    if (periodo && periodo !== "todos") {
+      sql += ` AND periodo = ?`;
+      args.push(periodo);
+    }
+
+    if (modalidade && modalidade !== "todas") {
+      sql += ` AND modalidade = ?`;
+      args.push(modalidade);
     }
 
     sql += ` ORDER BY created_at DESC`;
@@ -65,7 +77,11 @@ export async function POST(request) {
       priority = "media",
       requester_name,
       requester_email,
-      requester_role = "professor",
+      requester_role = "aluno",
+      periodo = "manha",
+      modalidade = "CT",
+      turma = "Turma Geral",
+      is_retirada = 1,
       room_location = "",
       photo_url = "",
     } = body;
@@ -89,9 +105,10 @@ export async function POST(request) {
       sql: `INSERT INTO incidents (
         id, code, title, description, target_type, target_id, target_name,
         category, priority, status, requester_name, requester_email,
-        requester_role, assigned_to, room_location, solution_notes, photo_url,
+        requester_role, periodo, modalidade, turma, is_retirada,
+        assigned_to, room_location, solution_notes, photo_url,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'aberto', ?, ?, ?, NULL, ?, NULL, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'aberto', ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?)`,
       args: [
         id,
         code,
@@ -105,6 +122,10 @@ export async function POST(request) {
         requester_name,
         requester_email || "contato@sp.senai.br",
         requester_role,
+        periodo,
+        modalidade,
+        turma,
+        is_retirada ? 1 : 0,
         room_location,
         photo_url,
         now,
@@ -113,15 +134,21 @@ export async function POST(request) {
     });
 
     // Inserir histórico inicial
+    const contextAction = is_retirada ? "registro_retirada" : "abertura";
+    const contextMsg = is_retirada
+      ? `Ocorrência registrada no momento da retirada pelo ${requester_role} ${requester_name} (Turma ${turma} - ${periodo.toUpperCase()}) para resguardar o aluno e notificar os docentes.`
+      : `Chamado registrado por ${requester_name} (${turma}): ${title}`;
+
     await db.execute({
       sql: `INSERT INTO incident_history (id, incident_id, author_name, author_role, action_type, message, created_at)
-            VALUES (?, ?, ?, ?, 'abertura', ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [
         `hist-${Date.now()}`,
         id,
         requester_name,
         requester_role,
-        `Chamado registrado: ${title}`,
+        contextAction,
+        contextMsg,
         now,
       ],
     });
@@ -129,8 +156,17 @@ export async function POST(request) {
     // Atualizar status do equipamento / notebook / sala afetada
     if (target_type === "notebook" && target_id) {
       await db.execute({
-        sql: `UPDATE notebooks SET status = 'danificado', notes = ? WHERE id = ? OR asset_tag = ?`,
-        args: [`Chamado ${code} aberto: ${title}`, target_id, target_id],
+        sql: `UPDATE notebooks 
+              SET status = 'danificado', notes = ?, last_user = ?, last_turma = ?, last_periodo = ?
+              WHERE id = ? OR asset_tag = ?`,
+        args: [
+          `Chamado ${code} aberto na retirada: ${title}`,
+          requester_name,
+          turma,
+          periodo,
+          target_id,
+          target_id,
+        ],
       });
     } else if (target_type === "equipamento" && target_id) {
       await db.execute({
@@ -151,6 +187,9 @@ export async function POST(request) {
         code,
         title,
         status: "aberto",
+        periodo,
+        modalidade,
+        turma,
       },
     });
   } catch (error) {

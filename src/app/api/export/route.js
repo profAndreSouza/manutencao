@@ -8,18 +8,24 @@ export async function GET() {
     await initDb();
     const result = await db.execute("SELECT * FROM incidents ORDER BY created_at DESC");
 
-    // CSV header
+    // CSV header com os dados pedagógicos e de períodos
     const headers = [
       "Código",
       "Título",
       "Tipo",
-      "Recurso / Equipamento",
-      "Local",
+      "Recurso / Notebook",
+      "Local / Sala",
+      "Período",
+      "Modalidade",
+      "Turma",
+      "Registrado na Retirada?",
       "Prioridade",
       "Status",
       "Solicitante",
+      "Cargo",
       "E-mail",
       "Técnico Atribuído",
+      "Orientação Formal por Escrito",
       "Data Abertura",
       "Data Resolução",
     ];
@@ -30,11 +36,17 @@ export async function GET() {
       `"${inc.target_type || ""}"`,
       `"${(inc.target_name || "").replace(/"/g, '""')}"`,
       `"${(inc.room_location || "").replace(/"/g, '""')}"`,
+      `"${inc.periodo || ""}"`,
+      `"${inc.modalidade || ""}"`,
+      `"${(inc.turma || "").replace(/"/g, '""')}"`,
+      `"${inc.is_retirada ? "SIM (Na Retirada)" : "NÃO"}"`,
       `"${inc.priority || ""}"`,
       `"${inc.status || ""}"`,
       `"${(inc.requester_name || "").replace(/"/g, '""')}"`,
+      `"${(inc.requester_role || "").replace(/"/g, '""')}"`,
       `"${inc.requester_email || ""}"`,
       `"${(inc.assigned_to || "Não atribuído").replace(/"/g, '""')}"`,
+      `"${(inc.orientacao_formal || "").replace(/"/g, '""')}"`,
       `"${inc.created_at || ""}"`,
       `"${inc.resolved_at || ""}"`,
     ]);

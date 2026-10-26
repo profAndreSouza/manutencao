@@ -19,6 +19,10 @@ import {
   HelpCircle,
   Check,
   RefreshCw,
+  User,
+  Clock,
+  ShieldCheck,
+  DoorOpen,
 } from "lucide-react";
 
 export default function NotebooksView({
@@ -27,11 +31,12 @@ export default function NotebooksView({
   isLoading,
   onRefresh,
   onOpenNewIncidentForNotebook,
+  onOpenStudentIntakeForNotebook,
   onOpenNewNotebookModal,
   onSelectNotebook,
 }) {
   const [search, setSearch] = useState("");
-  const [selectedCart, setSelectedCart] = useState("todos");
+  const [selectedRoom, setSelectedRoom] = useState("todos");
   const [selectedStatus, setSelectedStatus] = useState("todos");
   const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'table'
 
@@ -43,12 +48,13 @@ export default function NotebooksView({
       nb.brand.toLowerCase().includes(search.toLowerCase()) ||
       nb.model.toLowerCase().includes(search.toLowerCase()) ||
       (nb.serial_number && nb.serial_number.toLowerCase().includes(search.toLowerCase())) ||
-      nb.slot_number.toLowerCase().includes(search.toLowerCase());
+      nb.slot_number.toLowerCase().includes(search.toLowerCase()) ||
+      (nb.room_name && nb.room_name.toLowerCase().includes(search.toLowerCase()));
 
-    const matchCart = selectedCart === "todos" || nb.cart_group === selectedCart;
+    const matchRoom = selectedRoom === "todos" || nb.room_name === selectedRoom || nb.cart_group.includes(selectedRoom);
     const matchStatus = selectedStatus === "todos" || nb.status === selectedStatus;
 
-    return matchSearch && matchCart && matchStatus;
+    return matchSearch && matchRoom && matchStatus;
   });
 
   const getStatusBadge = (status) => {
@@ -108,6 +114,14 @@ export default function NotebooksView({
     return "text-red-600";
   };
 
+  const roomFilters = [
+    { label: "Todas as Salas", value: "todos" },
+    { label: "Sala 1 (32 Notebooks)", value: "Sala 1" },
+    { label: "Sala 2 (32 Notebooks)", value: "Sala 2" },
+    { label: "Sala 4 (32 Notebooks)", value: "Sala 4" },
+    { label: "Sala 5 (32 Notebooks)", value: "Sala 5" },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Top Header & Actions */}
@@ -116,11 +130,11 @@ export default function NotebooksView({
           <div className="flex items-center gap-2">
             <Laptop className="w-6 h-6 text-red-700" />
             <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-wide text-slate-900 font-heading">
-              Gestão de Frota de Notebooks
+              Gestão de Frota de Notebooks (128 Unidades)
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Controle individual por patrimônio SENAI, alocação em carrinhos móveis, saúde de bateria e abertura expressa de chamados.
+            Salas 1, 2, 4 e 5: 32 notebooks numerados por carrinho, controle de carregadores e rastreamento de uso compartilhado.
           </p>
         </div>
 
@@ -143,62 +157,45 @@ export default function NotebooksView({
         </div>
       </div>
 
-      {/* Cart Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Total General */}
-        <div
-          onClick={() => setSelectedCart("todos")}
-          className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
-            selectedCart === "todos"
-              ? "bg-red-50/70 border-red-500 shadow-xs ring-1 ring-red-500"
-              : "bg-white border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-            <span>Todos os Grupos</span>
-            <Laptop className="w-4 h-4 text-red-700" />
-          </div>
-          <div className="text-2xl font-extrabold text-slate-900 font-heading">
-            {notebooks.length}
-          </div>
-          <div className="text-xs text-slate-500 mt-1 flex justify-between">
-            <span className="text-emerald-700 font-semibold">
-              {notebooks.filter((n) => n.status === "disponivel" || n.status === "em_uso").length} OK
-            </span>
-            <span className="text-red-700 font-semibold">
-              {notebooks.filter((n) => n.status !== "disponivel" && n.status !== "em_uso").length} c/ defeito
-            </span>
-          </div>
-        </div>
+      {/* Cart / Room Selector Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        {roomFilters.map((rf) => {
+          const isSelected = selectedRoom === rf.value;
+          const count = rf.value === "todos"
+            ? notebooks.length
+            : notebooks.filter((n) => n.room_name === rf.value).length;
+          const defects = rf.value === "todos"
+            ? notebooks.filter((n) => n.status !== "disponivel" && n.status !== "em_uso").length
+            : notebooks.filter((n) => n.room_name === rf.value && n.status !== "disponivel" && n.status !== "em_uso").length;
 
-        {/* Dynamic Cart Cards */}
-        {carts.map((cart) => (
-          <div
-            key={cart.cart_group}
-            onClick={() => setSelectedCart(cart.cart_group)}
-            className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
-              selectedCart === cart.cart_group
-                ? "bg-red-50/70 border-red-500 shadow-xs ring-1 ring-red-500"
-                : "bg-white border-slate-200 hover:border-slate-300"
-            }`}
-          >
-            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-600 mb-1 truncate">
-              <span className="truncate">{cart.cart_group.split("(")[0]}</span>
-              <Layers className="w-4 h-4 text-slate-500 shrink-0" />
-            </div>
-            <div className="text-2xl font-extrabold text-slate-900 font-heading">
-              {cart.total}
-            </div>
-            <div className="text-xs text-slate-500 mt-1 flex justify-between">
-              <span className="text-emerald-700 font-semibold">{cart.operacionais} operacionais</span>
-              {Number(cart.defeito) > 0 ? (
-                <span className="text-red-700 font-bold">{cart.defeito} em reparo</span>
-              ) : (
-                <span className="text-emerald-600">100% OK</span>
-              )}
-            </div>
-          </div>
-        ))}
+          return (
+            <button
+              key={rf.value}
+              onClick={() => setSelectedRoom(rf.value)}
+              className={`p-3 rounded-md border text-left transition-all cursor-pointer ${
+                isSelected
+                  ? "bg-red-50/70 border-red-600 ring-1 ring-red-600 shadow-2xs"
+                  : "bg-white border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              <div className="flex items-center justify-between text-[11px] font-bold uppercase text-slate-600">
+                <span className="truncate">{rf.label.split("(")[0]}</span>
+                <DoorOpen className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              </div>
+              <div className="text-xl font-extrabold text-slate-900 font-heading mt-1">
+                {count} <span className="text-[10px] font-normal text-slate-500">unid.</span>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-1 flex justify-between">
+                <span className="text-emerald-700 font-semibold">{count - defects} OK</span>
+                {defects > 0 ? (
+                  <span className="text-red-700 font-bold">{defects} avaria</span>
+                ) : (
+                  <span className="text-slate-400">100%</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Filter and Search Bar */}
@@ -209,7 +206,7 @@ export default function NotebooksView({
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por Patrimônio (ex: NOTE-SEN-0103), modelo, série ou vaga..."
+              placeholder="Buscar por Patrimônio (ex: NOTE-S01-14), Sala, modelo, série ou vaga..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-sm focus:outline-hidden focus:ring-1 focus:ring-red-600 focus:bg-white text-slate-900"
@@ -236,7 +233,7 @@ export default function NotebooksView({
               <option value="disponivel">Disponível</option>
               <option value="em_uso">Em Uso</option>
               <option value="em_manutencao">Em Manutenção</option>
-              <option value="danificado">Danificado</option>
+              <option value="danificado">Danificado / Avaria</option>
               <option value="aguardando_peca">Aguardando Peça</option>
             </select>
 
@@ -272,10 +269,10 @@ export default function NotebooksView({
             Exibindo <strong>{filteredNotebooks.length}</strong> de{" "}
             <strong>{notebooks.length}</strong> notebooks
           </span>
-          {(selectedCart !== "todos" || selectedStatus !== "todos" || search) && (
+          {(selectedRoom !== "todos" || selectedStatus !== "todos" || search) && (
             <button
               onClick={() => {
-                setSelectedCart("todos");
+                setSelectedRoom("todos");
                 setSelectedStatus("todos");
                 setSearch("");
               }}
@@ -312,79 +309,79 @@ export default function NotebooksView({
                         </span>
                       </div>
                       <p className="text-xs font-semibold text-slate-600 mt-0.5">
-                        {nb.brand} {nb.model}
+                        {nb.room_name} &bull; {nb.brand} {nb.model}
                       </p>
                     </div>
                     {getStatusBadge(nb.status)}
                   </div>
 
-                  {/* Hardware Specs Pills */}
-                  <div className="bg-slate-50 rounded-md p-2.5 space-y-1.5 text-[11px] text-slate-600 border border-slate-100">
+                  {/* Hardware Specs & Fonte */}
+                  <div className="bg-slate-50 rounded-md p-2.5 space-y-1 text-[11px] text-slate-600 border border-slate-100">
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1 text-slate-500">
-                        <Cpu className="w-3 h-3 text-slate-400" /> Processador:
+                        <Zap className="w-3 h-3 text-slate-400" /> Carregador:
                       </span>
-                      <span className="font-medium text-slate-800 truncate max-w-[140px]">
-                        {nb.processor || "i5 / Ryzen 5"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-slate-500">
-                        <HardDrive className="w-3 h-3 text-slate-400" /> Memória / SSD:
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {nb.ram} &bull; {nb.storage}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-slate-500">
-                        <Zap className="w-3 h-3 text-slate-400" /> Fonte / Carregador:
-                      </span>
-                      <span className="font-mono font-medium text-slate-800">
+                      <span className="font-mono font-bold text-slate-800">
                         {nb.charger_tag || "FNT-PADRÃO"}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                    <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1 text-slate-500">
-                        <Battery className="w-3 h-3 text-slate-400" /> Saúde Bateria:
+                        <Battery className="w-3 h-3 text-slate-400" /> Bateria:
                       </span>
                       <span className={`font-bold ${getBatteryColor(nb.battery_health)}`}>
                         {nb.battery_health || "100%"}
                       </span>
                     </div>
+
+                    {/* Rastreabilidade de Usuário / Turma Anterior */}
+                    <div className="pt-1.5 mt-1 border-t border-slate-200/70 text-[10px] text-slate-500 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1">
+                          <User className="w-3 h-3 text-slate-400" /> Último usuário:
+                        </span>
+                        <span className="font-medium text-slate-800 truncate max-w-[130px]">
+                          {nb.last_user || "Não registrado"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" /> Turma / Turno:
+                        </span>
+                        <span className="font-medium text-slate-700 truncate max-w-[130px]">
+                          {nb.last_turma || "Regular"} ({nb.last_periodo || "Turno"})
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Notes / Issue description */}
                   {nb.notes && (
-                    <div className="text-[11px] text-slate-600 italic bg-amber-50/60 p-2 rounded border border-amber-200/60">
+                    <div className="text-[11px] text-slate-700 italic bg-amber-50/70 p-2 rounded border border-amber-200/80 leading-snug">
                       &ldquo;{nb.notes}&rdquo;
                     </div>
                   )}
-
-                  <div className="text-[10px] text-slate-400 truncate">
-                    Local: {nb.cart_group}
-                  </div>
                 </div>
 
                 {/* Card Action Footer */}
                 <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
                   <button
                     onClick={() => onSelectNotebook(nb)}
-                    className="text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-slate-900 cursor-pointer"
+                    className="text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-slate-900 cursor-pointer"
                   >
                     Detalhes
                   </button>
 
-                  <button
-                    onClick={() => onOpenNewIncidentForNotebook(nb)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-red-700 hover:bg-red-800 text-white rounded-xs transition-colors cursor-pointer shadow-2xs"
-                  >
-                    <Wrench className="w-3 h-3" />
-                    <span>Abrir Chamado</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => onOpenNewIncidentForNotebook(nb)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-red-700 hover:bg-red-800 text-white rounded-xs transition-colors cursor-pointer shadow-2xs"
+                    >
+                      <Wrench className="w-3 h-3" />
+                      <span>Chamado</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -400,10 +397,10 @@ export default function NotebooksView({
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-bold text-[10px] tracking-wider">
                 <tr>
                   <th className="py-3 px-4">Patrimônio / Vaga</th>
-                  <th className="py-3 px-4">Modelo & Fabricante</th>
-                  <th className="py-3 px-4">Carrinho / Alocação</th>
-                  <th className="py-3 px-4">Fonte / Carregador</th>
+                  <th className="py-3 px-4">Sala & Modelo</th>
+                  <th className="py-3 px-4">Carregador</th>
                   <th className="py-3 px-4">Bateria</th>
+                  <th className="py-3 px-4">Último Usuário & Turno</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Ação</th>
                 </tr>
@@ -411,32 +408,33 @@ export default function NotebooksView({
               <tbody className="divide-y divide-slate-100">
                 {filteredNotebooks.map((nb) => (
                   <tr key={nb.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 whitespace-nowrap">
                       <div className="font-mono font-bold text-slate-900">{nb.asset_tag}</div>
                       <div className="text-[11px] text-slate-500">{nb.slot_number}</div>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-900">
-                        {nb.brand} {nb.model}
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        {nb.processor} &bull; {nb.ram}
-                      </div>
+                      <div className="font-bold text-slate-900">{nb.room_name}</div>
+                      <div className="text-[11px] text-slate-500">{nb.brand} {nb.model}</div>
                     </td>
-                    <td className="py-3 px-4 text-slate-700">{nb.cart_group}</td>
-                    <td className="py-3 px-4 font-mono text-slate-700">
+                    <td className="py-3 px-4 font-mono font-medium text-slate-700 whitespace-nowrap">
                       {nb.charger_tag || "-"}
                     </td>
-                    <td className="py-3 px-4 font-bold">
+                    <td className="py-3 px-4 font-bold whitespace-nowrap">
                       <span className={getBatteryColor(nb.battery_health)}>
                         {nb.battery_health || "100%"}
                       </span>
                     </td>
-                    <td className="py-3 px-4">{getStatusBadge(nb.status)}</td>
-                    <td className="py-3 px-4 text-right space-x-2">
+                    <td className="py-3 px-4">
+                      <div className="font-semibold text-slate-800">{nb.last_user || "Uso regular"}</div>
+                      <div className="text-[10px] text-slate-500">
+                        {nb.last_turma || "-"} &bull; {nb.last_periodo || "-"}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">{getStatusBadge(nb.status)}</td>
+                    <td className="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
                       <button
                         onClick={() => onSelectNotebook(nb)}
-                        className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                        className="px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded"
                       >
                         Ver
                       </button>

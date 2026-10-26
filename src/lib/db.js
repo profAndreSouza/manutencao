@@ -1,8 +1,5 @@
 import { createClient } from "@libsql/client";
 
-// Obter variáveis de ambiente
-// Para Turso: TURSO_DATABASE_URL="libsql://seu-banco.turso.io" e TURSO_AUTH_TOKEN="seu-token"
-// Fallback: banco local SQLite (file:local.db) para desenvolvimento local sem necessidade de configuração prévia
 const url = process.env.TURSO_DATABASE_URL || "file:local.db";
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
@@ -13,8 +10,8 @@ export const db = createClient({
 
 let isInitialized = false;
 
-export async function initDb() {
-  if (isInitialized) return;
+export async function initDb(force = false) {
+  if (isInitialized && !force) return;
 
   // Criação das tabelas
   await db.execute(`
@@ -35,6 +32,7 @@ export async function initDb() {
       id TEXT PRIMARY KEY,
       asset_tag TEXT NOT NULL UNIQUE,
       cart_group TEXT NOT NULL,
+      room_name TEXT NOT NULL,
       slot_number TEXT NOT NULL,
       brand TEXT NOT NULL,
       model TEXT NOT NULL,
@@ -45,7 +43,10 @@ export async function initDb() {
       charger_tag TEXT,
       battery_health TEXT DEFAULT '100%',
       status TEXT NOT NULL DEFAULT 'disponivel',
-      notes TEXT
+      notes TEXT,
+      last_user TEXT,
+      last_turma TEXT,
+      last_periodo TEXT
     );
   `);
 
@@ -69,18 +70,24 @@ export async function initDb() {
       code TEXT NOT NULL UNIQUE,
       title TEXT NOT NULL,
       description TEXT NOT NULL,
-      target_type TEXT NOT NULL, -- 'notebook', 'sala', 'equipamento'
+      target_type TEXT NOT NULL, -- 'notebook', 'computador', 'sala', 'equipamento'
       target_id TEXT NOT NULL,
       target_name TEXT NOT NULL,
       category TEXT NOT NULL,
-      priority TEXT NOT NULL DEFAULT 'media', -- 'baixa', 'media', 'alta', 'critica'
-      status TEXT NOT NULL DEFAULT 'aberto', -- 'aberto', 'em_analise', 'em_atendimento', 'aguardando_peca', 'resolvido', 'fechado'
+      priority TEXT NOT NULL DEFAULT 'media',
+      status TEXT NOT NULL DEFAULT 'aberto',
       requester_name TEXT NOT NULL,
       requester_email TEXT NOT NULL,
-      requester_role TEXT NOT NULL,
+      requester_role TEXT NOT NULL, -- 'aluno', 'professor', 'tecnico', 'coordenador'
+      periodo TEXT, -- 'manha', 'tarde', 'noite'
+      modalidade TEXT, -- 'CAI', 'CT', 'CST', 'FIC'
+      turma TEXT, -- Ex: 'CST ADS 3º Termo', 'CT Mecatrônica 2A'
+      is_retirada INTEGER DEFAULT 1, -- 1 se reportado na retirada do equipamento
       assigned_to TEXT,
       room_location TEXT,
       solution_notes TEXT,
+      orientacao_formal TEXT,
+      orientacao_gerada_em TEXT,
       photo_url TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -100,361 +107,466 @@ export async function initDb() {
     );
   `);
 
-  // Verificar se há dados iniciais de notebooks
-  const checkNotebooks = await db.execute("SELECT COUNT(*) as count FROM notebooks");
-  const count = Number(checkNotebooks.rows[0].count);
+  // Se a tabela rooms estiver vazia ou forçarmos, recria com a estrutura solicitada
+  const checkRooms = await db.execute("SELECT COUNT(*) as count FROM rooms");
+  const count = Number(checkRooms.rows[0].count);
 
-  if (count === 0) {
-    await seedInitialData();
+  if (count === 0 || force) {
+    await seedSchoolData();
   }
 
   isInitialized = true;
 }
 
-async function seedInitialData() {
-  // 1. Salas e Laboratórios do UniSENAI
+export async function resetAndSeed() {
+  await db.execute("DELETE FROM incident_history");
+  await db.execute("DELETE FROM incidents");
+  await db.execute("DELETE FROM equipment");
+  await db.execute("DELETE FROM notebooks");
+  await db.execute("DELETE FROM rooms");
+  await seedSchoolData();
+}
+
+async function seedSchoolData() {
+  // =========================================================================
+  // 1. SALAS CONFORME SOLICITADO PELO USUÁRIO:
+  // Salas: 1, 2, 3, 4, 5, Informática 4, Projetos, CNC
+  // =========================================================================
   const roomsData = [
-    { id: "sala-101", name: "Sala de Aula 101", code: "S-101", block: "Bloco A", floor: "Térreo", capacity: 35, status: "operacional", description: "Sala com lousa interativa e projetor" },
-    { id: "lab-info-1", name: "Lab de Informática 01 (Desenvolvimento)", code: "LAB-01", block: "Bloco B", floor: "1º Andar", capacity: 40, status: "operacional", description: "40 estações com ambiente de programação e IA" },
-    { id: "lab-info-2", name: "Lab de Informática 02 (Redes & Cloud)", code: "LAB-02", block: "Bloco B", floor: "1º Andar", capacity: 36, status: "atencao", description: "Racks de switches e bancadas de testes" },
-    { id: "lab-maker", name: "Laboratório Maker & Prototipagem", code: "MAKER", block: "Bloco C", floor: "Térreo", capacity: 25, status: "operacional", description: "Impressoras 3D, corte a laser e kits IoT" },
-    { id: "lab-mecatronica", name: "Laboratório de Mecatrônica e Robótica", code: "MEC-01", block: "Bloco C", floor: "Térreo", capacity: 28, status: "operacional", description: "Braços robóticos industriais e bancadas CLP" },
-    { id: "auditorio", name: "Auditório Principal UniSENAI", code: "AUD-01", block: "Bloco Central", floor: "Térreo", capacity: 180, status: "operacional", description: "Sonorização integrada, 2 telões e cabine de transmissão" }
+    {
+      id: "sala-1",
+      name: "Sala 1",
+      code: "SALA-01",
+      block: "Bloco A",
+      floor: "Térreo",
+      capacity: 35,
+      status: "operacional",
+      description: "Sala de aula equipada com carrinho móvel contendo 32 notebooks Lenovo ThinkPad.",
+    },
+    {
+      id: "sala-2",
+      name: "Sala 2",
+      code: "SALA-02",
+      block: "Bloco A",
+      floor: "Térreo",
+      capacity: 35,
+      status: "operacional",
+      description: "Sala de aula equipada com carrinho móvel contendo 32 notebooks Lenovo ThinkPad.",
+    },
+    {
+      id: "sala-3",
+      name: "Sala 3",
+      code: "SALA-03",
+      block: "Bloco A",
+      floor: "1º Andar",
+      capacity: 35,
+      status: "operacional",
+      description: "Sala de aula teórica com projetor interativo, lousa e climatização.",
+    },
+    {
+      id: "sala-4",
+      name: "Sala 4",
+      code: "SALA-04",
+      block: "Bloco B",
+      floor: "1º Andar",
+      capacity: 35,
+      status: "atencao",
+      description: "Sala de aula equipada com carrinho móvel contendo 32 notebooks Dell Latitude.",
+    },
+    {
+      id: "sala-5",
+      name: "Sala 5",
+      code: "SALA-05",
+      block: "Bloco B",
+      floor: "1º Andar",
+      capacity: 35,
+      status: "operacional",
+      description: "Sala de aula equipada com carrinho móvel contendo 32 notebooks Dell Latitude.",
+    },
+    {
+      id: "lab-inf-4",
+      name: "Informática 4",
+      code: "INF-04",
+      block: "Bloco B",
+      floor: "2º Andar",
+      capacity: 25,
+      status: "operacional",
+      description: "Laboratório de computação de alto desempenho com 21 computadores desktops i7.",
+    },
+    {
+      id: "lab-projetos",
+      name: "Laboratório de Projetos",
+      code: "PROJ-LAB",
+      block: "Bloco C",
+      floor: "Térreo",
+      capacity: 20,
+      status: "atencao",
+      description: "Ambiente maker e de prototipagem com 10 computadores, multímetros, fontes de bancada e caixas de kits didáticos.",
+    },
+    {
+      id: "lab-cnc",
+      name: "Laboratório CNC",
+      code: "CNC-MEC",
+      block: "Oficinas Mecânicas",
+      floor: "Térreo",
+      capacity: 25,
+      status: "operacional",
+      description: "Laboratório de usinagem computadorizada com 21 estações CAD/CAM e tornos/fresadoras CNC.",
+    },
   ];
 
   for (const r of roomsData) {
     await db.execute({
-      sql: `INSERT INTO rooms (id, name, code, block, floor, capacity, status, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT OR REPLACE INTO rooms (id, name, code, block, floor, capacity, status, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [r.id, r.name, r.code, r.block, r.floor, r.capacity, r.status, r.description],
     });
   }
 
-  // 2. Notebooks (Foco principal pedido pelo usuário)
-  // Criamos o Carrinho A (Carrinho Móvel TI 1) e Carrinho B (Carrinho Móvel TI 2) e Reserva Docente
-  const notebooksList = [];
+  // =========================================================================
+  // 2. NOTEBOOKS DAS SALAS 1, 2, 4 e 5 (32 notebooks cada = 128 notebooks)
+  // =========================================================================
+  const notebookRooms = [
+    { roomId: "sala-1", roomName: "Sala 1", cartName: "Carrinho Sala 1 (32 Notebooks)", brand: "Lenovo", model: "ThinkPad E14 Gen 4", codePrefix: "S01" },
+    { roomId: "sala-2", roomName: "Sala 2", cartName: "Carrinho Sala 2 (32 Notebooks)", brand: "Lenovo", model: "ThinkPad E14 Gen 4", codePrefix: "S02" },
+    { roomId: "sala-4", roomName: "Sala 4", cartName: "Carrinho Sala 4 (32 Notebooks)", brand: "Dell", model: "Latitude 3420", codePrefix: "S04" },
+    { roomId: "sala-5", roomName: "Sala 5", cartName: "Carrinho Sala 5 (32 Notebooks)", brand: "Dell", model: "Latitude 3420", codePrefix: "S05" },
+  ];
 
-  // Carrinho A (20 Notebooks Lenovo ThinkPad)
-  for (let i = 1; i <= 20; i++) {
+  for (const roomConfig of notebookRooms) {
+    for (let i = 1; i <= 32; i++) {
+      const pad = String(i).padStart(2, "0");
+      const assetTag = `NOTE-${roomConfig.codePrefix}-${pad}`;
+      const slotNumber = `Vaga ${pad}`;
+      const id = `nb-${roomConfig.codePrefix.toLowerCase()}-${i}`;
+
+      let status = "disponivel";
+      let battery = "98%";
+      let notes = "Equipamento disponível para retirada de alunos.";
+      let lastUser = "Uso compartilhado regular";
+      let lastTurma = "CT Mecatrônica 2A";
+      let lastPeriodo = "Tarde";
+
+      // Criar casos reais de irregularidade relatada entre períodos conforme a narrativa do usuário:
+      if (roomConfig.codePrefix === "S01" && i === 14) {
+        status = "danificado";
+        battery = "85%";
+        notes = "Barra de espaço emperrada e tecla Enter sem resposta. Registrado por aluno do CST Noturno na retirada.";
+        lastUser = "Matheus Santos (CAI Usinagem)";
+        lastTurma = "CAI Usinagem 1º Semestre";
+        lastPeriodo = "Tarde";
+      } else if (roomConfig.codePrefix === "S01" && i === 5) {
+        status = "em_uso";
+        battery = "92%";
+        notes = "Em uso pelo aluno Gabriel Rocha.";
+        lastUser = "Gabriel Rocha";
+        lastTurma = "CST ADS 3º Termo";
+        lastPeriodo = "Noite";
+      } else if (roomConfig.codePrefix === "S02" && i === 8) {
+        status = "aguardando_peca";
+        battery = "40% (Viciada)";
+        notes = "Fonte de alimentação com cabo rompido. Aguardando reposição da fonte.";
+        lastUser = "Turma FIC Elétrica";
+        lastTurma = "FIC Instalador Residencial";
+        lastPeriodo = "Manhã";
+      } else if (roomConfig.codePrefix === "S04" && i === 22) {
+        status = "danificado";
+        battery = "94%";
+        notes = "Display com linha vertical azul no canto direito. Aluno registrou na retirada para não levar a culpa.";
+        lastUser = "Lucas Pereira (CT Automação)";
+        lastTurma = "CT Automação 3A";
+        lastPeriodo = "Tarde";
+      } else if (roomConfig.codePrefix === "S05" && i === 3) {
+        status = "em_manutencao";
+        battery = "76%";
+        notes = "Sistema operacional travado em loop de recuperação do Windows. Reinstalação de imagem em andamento.";
+        lastUser = "Felipe Nogueira (CT DS)";
+        lastTurma = "CT Desenvolvimento de Sistemas 1B";
+        lastPeriodo = "Manhã";
+      }
+
+      await db.execute({
+        sql: `INSERT OR REPLACE INTO notebooks (
+          id, asset_tag, cart_group, room_name, slot_number, brand, model,
+          processor, ram, storage, serial_number, charger_tag, battery_health,
+          status, notes, last_user, last_turma, last_periodo
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          assetTag,
+          roomConfig.cartName,
+          roomConfig.roomName,
+          slotNumber,
+          roomConfig.brand,
+          roomConfig.model,
+          roomConfig.brand === "Lenovo" ? "Intel Core i5-1235U" : "Intel Core i5-1135G7",
+          "16 GB DDR4",
+          "512 GB SSD NVMe",
+          `SN-${roomConfig.codePrefix}-${pad}88X`,
+          `FNT-${roomConfig.codePrefix}-${pad}`,
+          battery,
+          status,
+          notes,
+          lastUser,
+          lastTurma,
+          lastPeriodo,
+        ],
+      });
+    }
+  }
+
+  // =========================================================================
+  // 3. COMPUTADORES DESKTOPS:
+  // - Informática 4: 21 computadores
+  // - CNC: 21 computadores
+  // - Projetos: 10 computadores
+  // =========================================================================
+
+  // Informática 4 (21 computadores)
+  for (let i = 1; i <= 21; i++) {
     const pad = String(i).padStart(2, "0");
-    const tag = `NOTE-SEN-01${pad}`;
-    const slot = `Vaga ${pad}`;
+    const tag = `PC-INF4-${pad}`;
     let status = "disponivel";
-    let health = "98%";
-    let notes = "Equipamento em excelente estado de conservação";
+    let desc = "Estação de trabalho Core i7, 32GB RAM, SSD 512GB com monitor Dell 24 polegadas.";
 
-    if (i === 3) {
-      status = "em_manutencao";
-      health = "45% (Bateria estufando)";
-      notes = "Encaminhado para troca do módulo de bateria";
-    } else if (i === 7) {
-      status = "danificado";
-      health = "88%";
-      notes = "Teclas W, A, S, D travando com resíduo";
-    } else if (i === 12) {
-      status = "em_uso";
-      health = "92%";
-      notes = "Empréstimo para aula de automação industrial";
+    if (i === 9) {
+      status = "defeituoso";
+      desc = "Porta de rede Ethernet da bancada 3 sem sinal de link de 1Gbps.";
     }
 
-    notebooksList.push({
-      id: `nb-cart-a-${i}`,
-      asset_tag: tag,
-      cart_group: "Carrinho Móvel A (Lab Informática)",
-      slot_number: slot,
-      brand: "Lenovo",
-      model: "ThinkPad E14 Gen 4",
-      processor: "Intel Core i5-1235U",
-      ram: "16 GB DDR4",
-      storage: "512 GB SSD NVMe",
-      serial_number: `PF3${i}9X8A`,
-      charger_tag: `FNT-SEN-01${pad}`,
-      battery_health: health,
-      status: status,
-      notes: notes,
-    });
-  }
-
-  // Carrinho B (15 Notebooks Dell Latitude)
-  for (let i = 1; i <= 15; i++) {
-    const pad = String(i).padStart(2, "0");
-    const tag = `NOTE-SEN-02${pad}`;
-    const slot = `Vaga ${pad}`;
-    let status = "disponivel";
-    let health = "100%";
-    let notes = "Equipamento revisado no início do semestre";
-
-    if (i === 4) {
-      status = "aguardando_peca";
-      health = "90%";
-      notes = "Display com linha vertical azul, aguardando tela reposição";
-    } else if (i === 9) {
-      status = "em_uso";
-      health = "95%";
-      notes = "Empréstimo projeto integrador";
-    }
-
-    notebooksList.push({
-      id: `nb-cart-b-${i}`,
-      asset_tag: tag,
-      cart_group: "Carrinho Móvel B (Maker / Projetos)",
-      slot_number: slot,
-      brand: "Dell",
-      model: "Latitude 3420",
-      processor: "Intel Core i7-1165G7",
-      ram: "16 GB DDR4",
-      storage: "512 GB SSD NVMe",
-      serial_number: `8H7B${i}2`,
-      charger_tag: `FNT-SEN-02${pad}`,
-      battery_health: health,
-      status: status,
-      notes: notes,
-    });
-  }
-
-  // Reserva de Notebooks Docentes (5 Unidades)
-  for (let i = 1; i <= 5; i++) {
-    const pad = String(i).padStart(2, "0");
-    notebooksList.push({
-      id: `nb-docente-${i}`,
-      asset_tag: tagDocente(i),
-      cart_group: "Armário de Reserva Docente",
-      slot_number: `Gaveta ${pad}`,
-      brand: "Lenovo",
-      model: "ThinkPad L14 Gen 3",
-      processor: "AMD Ryzen 5 PRO 5675U",
-      ram: "32 GB DDR4",
-      storage: "1 TB SSD NVMe",
-      serial_number: `R90${i}DOC`,
-      charger_tag: `FNT-DOC-0${i}`,
-      battery_health: "99%",
-      status: i === 2 ? "em_uso" : "disponivel",
-      notes: "Configuração para professores e coordenadores de curso",
-    });
-  }
-
-  function tagDocente(num) {
-    return `NOTE-DOC-00${num}`;
-  }
-
-  for (const nb of notebooksList) {
     await db.execute({
-      sql: `INSERT INTO notebooks (id, asset_tag, cart_group, slot_number, brand, model, processor, ram, storage, serial_number, charger_tag, battery_health, status, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT OR REPLACE INTO equipment (id, asset_tag, name, category, room_id, room_name, serial_number, status, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
-        nb.id,
-        nb.asset_tag,
-        nb.cart_group,
-        nb.slot_number,
-        nb.brand,
-        nb.model,
-        nb.processor,
-        nb.ram,
-        nb.storage,
-        nb.serial_number,
-        nb.charger_tag,
-        nb.battery_health,
-        nb.status,
-        nb.notes,
+        `pc-inf4-${i}`,
+        tag,
+        `Computador Desktop Estação ${pad}`,
+        "computador",
+        "lab-inf-4",
+        "Informática 4",
+        `DELL-INF4-${pad}`,
+        status,
+        desc,
       ],
     });
   }
 
-  // 3. Equipamentos Gerais
-  const equipmentList = [
-    {
-      id: "eq-proj-101",
-      asset_tag: "PAT-SEN-00411",
-      name: "Projetor Laser Epson PowerLite 4000 Lumens",
-      category: "audiovisual",
-      room_id: "sala-101",
-      room_name: "Sala de Aula 101",
-      serial_number: "EPS-98214-X",
-      status: "disponivel",
-      description: "Instalado no teto com cabo HDMI e adaptador Type-C",
-    },
-    {
-      id: "eq-ar-lab1",
-      asset_tag: "PAT-SEN-00582",
-      name: "Ar-Condicionado Inverter Daikin 24.000 BTUs",
-      category: "climatizacao",
-      room_id: "lab-info-1",
-      room_name: "Lab de Informática 01",
-      serial_number: "DKN-24K-881",
-      status: "disponivel",
-      description: "Manutenção preventiva realizada no mês passado",
-    },
-    {
-      id: "eq-3d-maker",
-      asset_tag: "PAT-SEN-00690",
-      name: "Impressora 3D Bambu Lab X1-Carbon Combo",
-      category: "maker",
-      room_id: "lab-maker",
-      room_name: "Laboratório Maker & Prototipagem",
-      serial_number: "BL-X1C-3391",
-      status: "em_manutencao",
-      description: "Bico extrusor entupido durante impressão de filamento ABS",
-    },
-    {
-      id: "eq-switch-lab2",
-      asset_tag: "PAT-SEN-00714",
-      name: "Switch Cisco Catalyst 48 Portas PoE+",
-      category: "rede",
-      room_id: "lab-info-2",
-      room_name: "Lab de Informática 02",
-      serial_number: "CISCO-C9200-48P",
-      status: "disponivel",
-      description: "Alimenta bancadas de redes e pontos de acesso Wi-Fi 6",
-    },
-    {
-      id: "eq-audio-auditorio",
-      asset_tag: "PAT-SEN-00820",
-      name: "Mesa de Som Digital Behringer X32",
-      category: "audiovisual",
-      room_id: "auditorio",
-      room_name: "Auditório Principal UniSENAI",
-      serial_number: "BEHR-X32-551",
-      status: "disponivel",
-      description: "Mesa principal da cabine com 32 canais e interface USB",
-    },
-  ];
-
-  for (const eq of equipmentList) {
+  // CNC (21 computadores)
+  for (let i = 1; i <= 21; i++) {
+    const pad = String(i).padStart(2, "0");
+    const tag = `PC-CNC-${pad}`;
     await db.execute({
-      sql: `INSERT INTO equipment (id, asset_tag, name, category, room_id, room_name, serial_number, status, description)
+      sql: `INSERT OR REPLACE INTO equipment (id, asset_tag, name, category, room_id, room_name, serial_number, status, description)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [eq.id, eq.asset_tag, eq.name, eq.category, eq.room_id, eq.room_name, eq.serial_number, eq.status, eq.description],
+      args: [
+        `pc-cnc-${i}`,
+        tag,
+        `Estação CAD/CAM CNC ${pad}`,
+        "computador",
+        "lab-cnc",
+        "Laboratório CNC",
+        `HP-CNC-${pad}`,
+        "disponivel",
+        "Estação dedicada para programação de centros de usinagem e torno CNC com software Edgecam/SolidWorks.",
+      ],
     });
   }
 
-  // 4. Incidentes Iniciais Realistas
+  // Sala de Projetos (10 computadores)
+  for (let i = 1; i <= 10; i++) {
+    const pad = String(i).padStart(2, "0");
+    const tag = `PC-PROJ-${pad}`;
+    await db.execute({
+      sql: `INSERT OR REPLACE INTO equipment (id, asset_tag, name, category, room_id, room_name, serial_number, status, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        `pc-proj-${i}`,
+        tag,
+        `Computador de Projetos ${pad}`,
+        "computador",
+        "lab-projetos",
+        "Laboratório de Projetos",
+        `PROJ-PC-${pad}`,
+        "disponivel",
+        "Estação de bancada para desenvolvimento de projetos integradores e testes eletrônicos.",
+      ],
+    });
+  }
+
+  // =========================================================================
+  // 4. EQUIPAMENTOS ADICIONAIS DO LAB DE PROJETOS:
+  // Multímetros, Fontes de bancada e Caixas de Kits Didáticos
+  // =========================================================================
+  const projetosExtras = [
+    // Multímetros
+    { id: "mult-proj-01", tag: "PAT-PROJ-MULT-01", name: "Multímetro Digital True RMS Minipa ET-2082C", cat: "multimetro", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "MIN-0104", st: "disponivel", desc: "Multímetro com cabos banana-jacaré e pontas de prova CAT III." },
+    { id: "mult-proj-02", tag: "PAT-PROJ-MULT-02", name: "Multímetro Digital True RMS Minipa ET-2082C", cat: "multimetro", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "MIN-0105", st: "defeituoso", desc: "Ponta de prova vermelha partida no borne positivo durante a aula anterior." },
+    { id: "mult-proj-03", tag: "PAT-PROJ-MULT-03", name: "Multímetro Digital True RMS Minipa ET-2082C", cat: "multimetro", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "MIN-0106", st: "disponivel", desc: "Calibrado com aviso sonoro de continuidade ativo." },
+    { id: "mult-proj-04", tag: "PAT-PROJ-MULT-04", name: "Multímetro Digital Hikari HM-2090", cat: "multimetro", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "HIK-0321", st: "disponivel", desc: "Multímetro de bancada de alta precisão." },
+
+    // Fontes de Bancada
+    { id: "fnt-proj-01", tag: "PAT-PROJ-FNT-01", name: "Fonte de Bancada DC Ajustável 0-30V 5A Hikari", cat: "fonte_bancada", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "HF-3005-A", st: "disponivel", desc: "Fonte estabilizada com display digital duplo para tensão e corrente." },
+    { id: "fnt-proj-02", tag: "PAT-PROJ-FNT-02", name: "Fonte de Bancada DC Ajustável 0-30V 5A Hikari", cat: "fonte_bancada", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "HF-3005-B", st: "em_manutencao", desc: "Knob de ajuste fino de tensão com folga mecânica no potenciômetro." },
+    { id: "fnt-proj-03", tag: "PAT-PROJ-FNT-03", name: "Fonte de Bancada Simétrica Minipa MPS-3005", cat: "fonte_bancada", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "MIN-FNT-09", st: "disponivel", desc: "Fonte com 2 saídas variáveis e 1 saída fixa 5V 3A." },
+
+    // Caixas de Kits Didáticos
+    { id: "kit-proj-01", tag: "KIT-SENAI-01", name: "Caixa de Kit Didático Arduino & Sensores IoT 01", cat: "kit_didatico", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "KIT-IOT-01", st: "disponivel", desc: "Contém 1x Arduino Uno R3, 1x ESP32, 2x Protoboards, cabos jumper e módulo relé." },
+    { id: "kit-proj-02", tag: "KIT-SENAI-02", name: "Caixa de Kit Didático Arduino & Sensores IoT 02", cat: "kit_didatico", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "KIT-IOT-02", st: "disponivel", desc: "Contém sensores ultrassônico, DHT22 de temperatura, display LCD 16x2 I2C." },
+    { id: "kit-proj-03", tag: "KIT-SENAI-03", name: "Caixa de Kit Didático Arduino & Sensores IoT 03", cat: "kit_didatico", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "KIT-IOT-03", st: "defeituoso", desc: "Faltando cabo USB-B de comunicação e display OLED com pino quebrado." },
+    { id: "kit-proj-04", tag: "KIT-SENAI-04", name: "Caixa de Kit Didático CLP & Automação Compacta", cat: "kit_didatico", room: "lab-projetos", rName: "Laboratório de Projetos", sn: "KIT-CLP-04", st: "disponivel", desc: "Kit didático para treinamento de lógica ladder e botoeiras industriais." },
+  ];
+
+  for (const eq of projetosExtras) {
+    await db.execute({
+      sql: `INSERT OR REPLACE INTO equipment (id, asset_tag, name, category, room_id, room_name, serial_number, status, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [eq.id, eq.tag, eq.name, eq.cat, eq.room, eq.rName, eq.sn, eq.st, eq.desc],
+    });
+  }
+
+  // =========================================================================
+  // 5. INCIDENTES REALISTAS EXEMPLIFICANDO A SITUAÇÃO NARRADA
+  // =========================================================================
   const incidentsList = [
     {
       id: "inc-001",
       code: "INC-2026-001",
-      title: "Bateria não carrega e carcaça deformada",
-      description: "O notebook do Carrinho A (Vaga 03) não segura carga e a carcaça inferior apresenta leve estufamento na região da bateria. Retirado de circulação para segurança dos alunos.",
+      title: "Barra de espaço solta e tecla Enter inoperante (Identificado na Retirada)",
+      description: "Ao retirar o notebook no início da aula das 19h no Carrinho da Sala 1 (Vaga 14), o aluno notou que a barra de espaço estava solta e a tecla Enter não responde. Ocorrência registrada imediatamente para resguardar o aluno da turma noturna e orientar a turma anterior da tarde.",
       target_type: "notebook",
-      target_id: "nb-cart-a-3",
-      target_name: "Notebook Lenovo ThinkPad (NOTE-SEN-0103) - Carrinho A",
+      target_id: "nb-s01-14",
+      target_name: "Notebook NOTE-S01-14 (Sala 1 - Vaga 14)",
       category: "hardware",
-      priority: "critica",
+      priority: "alta",
       status: "em_atendimento",
-      requester_name: "Prof. Marcos Oliveira",
-      requester_email: "marcos.oliveira@sp.senai.br",
-      requester_role: "professor",
+      requester_name: "Lucas Silva",
+      requester_email: "lucas.silva@aluno.senai.br",
+      requester_role: "aluno",
+      periodo: "noite",
+      modalidade: "CST",
+      turma: "CST ADS 3º Termo",
+      is_retirada: 1,
       assigned_to: "Lucas Mendes (Suporte TI)",
-      room_location: "Carrinho Móvel A - Lab 01",
-      solution_notes: "Bateria original sobressalente requisitada ao almoxarifado de TI.",
-      created_at: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
+      room_location: "Sala 1 - Bloco A",
+      solution_notes: "Constatado resíduo plástico travando a mola da tecla. Alinhado com a coordenação pedagógica para orientação por escrito à turma de Mecatrônica da tarde.",
+      orientacao_formal: "Orientação Formal Pedagógica: Notificado o representante de turma do CAI/CT da tarde sobre o zelo com os teclados na Sala 1.",
+      orientacao_gerada_em: new Date(Date.now() - 10 * 3600 * 1000).toISOString(),
+      created_at: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
     },
     {
       id: "inc-002",
       code: "INC-2026-002",
-      title: "Teclado com teclas travando e falhas no acionamento",
-      description: "Notebook NOTE-SEN-0107 (Carrinho A - Vaga 07) com teclas W, A, S e Barra de Espaço travadas por sujeira/líquido. Alunos não conseguem digitar código nas aulas de programação.",
+      title: "Linha vertical no display e adesivo na carcaça (Identificado na Retirada)",
+      description: "Notebook NOTE-S04-22 (Sala 4 - Vaga 22) retirado no início da aula matutina já apresentava linha vertical azul no LCD e adesivo colado na carcaça. Registro de irregularidade para não responsabilizar o aluno atual.",
       target_type: "notebook",
-      target_id: "nb-cart-a-7",
-      target_name: "Notebook Lenovo ThinkPad (NOTE-SEN-0107) - Carrinho A",
+      target_id: "nb-s04-22",
+      target_name: "Notebook NOTE-S04-22 (Sala 4 - Vaga 22)",
       category: "hardware",
       priority: "alta",
       status: "aberto",
-      requester_name: "Camila Rocha (Aluna Monitora)",
-      requester_email: "camila.rocha@aluno.senai.br",
+      requester_name: "Mariana Costa",
+      requester_email: "mariana.costa@aluno.senai.br",
       requester_role: "aluno",
+      periodo: "manha",
+      modalidade: "CT",
+      turma: "CT Desenvolvimento de Sistemas 1A",
+      is_retirada: 1,
       assigned_to: null,
-      room_location: "Carrinho Móvel A - Lab 01",
+      room_location: "Sala 4 - Bloco B",
       solution_notes: null,
-      created_at: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
+      orientacao_formal: null,
+      orientacao_gerada_em: null,
+      created_at: new Date(Date.now() - 14 * 3600 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 14 * 3600 * 1000).toISOString(),
     },
     {
       id: "inc-003",
       code: "INC-2026-003",
-      title: "Display LCD com linha vertical e artefatos",
-      description: "Tela do NOTE-SEN-0204 (Dell Latitude) apresenta linha vertical azul espessa no centro da tela. Provável falha de flat cable ou painel LCD.",
+      title: "Fonte de alimentação com isolamento rompido na saída",
+      description: "Carregador FNT-S02-08 do notebook 08 da Sala 2 com fios expostos próximo ao conector P4. Retirado de circulação por risco de choque elétrico e curto.",
       target_type: "notebook",
-      target_id: "nb-cart-b-4",
-      target_name: "Notebook Dell Latitude (NOTE-SEN-0204) - Carrinho B",
-      category: "hardware",
-      priority: "alta",
+      target_id: "nb-s02-8",
+      target_name: "Notebook NOTE-S02-08 (Sala 2 - Vaga 08)",
+      category: "eletrica",
+      priority: "critica",
       status: "aguardando_peca",
-      requester_name: "Prof. Alexandre Castro",
-      requester_email: "alexandre.castro@sp.senai.br",
+      requester_name: "Prof. Carlos Roberto",
+      requester_email: "carlos.eduardo@sp.senai.br",
       requester_role: "professor",
-      assigned_to: "Lucas Mendes (Suporte TI)",
-      room_location: "Carrinho Móvel B - Maker",
-      solution_notes: "Aguardando envio do painel de reposição pela garantia Dell.",
-      created_at: new Date(Date.now() - 72 * 3600 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 10 * 3600 * 1000).toISOString(),
+      periodo: "manha",
+      modalidade: "CT",
+      turma: "CT Automação Industrial 2A",
+      is_retirada: 0,
+      assigned_to: "Carlos Roberto (Manutenção)",
+      room_location: "Sala 2 - Bloco A",
+      solution_notes: "Aguardando chegada do lote de fontes de reposição 65W.",
+      orientacao_formal: null,
+      orientacao_gerada_em: null,
+      created_at: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
     },
     {
       id: "inc-004",
       code: "INC-2026-004",
-      title: "Bico entupido e sensor de temperatura da Impressora 3D",
-      description: "A impressora Bambu Lab do Lab Maker parou de extrusar filamento ABS durante a impressão e apresenta erro de leitura no termistor do hotend.",
+      title: "Ponta de prova partida do Multímetro Minipa da Bancada 2",
+      description: "Ponta de prova vermelha do multímetro PAT-PROJ-MULT-02 quebrada no conector banana ao final da aula de eletrônica analógica.",
       target_type: "equipamento",
-      target_id: "eq-3d-maker",
-      target_name: "Impressora 3D Bambu Lab X1-Carbon (PAT-SEN-00690)",
-      category: "maker",
+      target_id: "mult-proj-02",
+      target_name: "Multímetro Digital Minipa (PAT-PROJ-MULT-02)",
+      category: "eletrica",
       priority: "media",
       status: "em_atendimento",
-      requester_name: "Eng. Daniela Prado (Lab Maker)",
-      requester_email: "daniela.prado@sp.senai.br",
-      requester_role: "tecnico",
-      assigned_to: "Eng. Daniela Prado",
-      room_location: "Laboratório Maker",
-      solution_notes: "Desmontagem do hotend para limpeza térmica e substituição do bocal 0.4mm.",
-      created_at: new Date(Date.now() - 20 * 3600 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+      requester_name: "Prof. Carlos Roberto",
+      requester_email: "carlos.eduardo@sp.senai.br",
+      requester_role: "professor",
+      periodo: "tarde",
+      modalidade: "CAI",
+      turma: "CAI Eletricista de Manutenção 1A",
+      is_retirada: 0,
+      assigned_to: "Lucas Mendes (Suporte TI)",
+      room_location: "Laboratório de Projetos",
+      solution_notes: "Substituição do par de pontas de prova por kit reserva.",
+      orientacao_formal: null,
+      orientacao_gerada_em: null,
+      created_at: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
     },
     {
       id: "inc-005",
       code: "INC-2026-005",
-      title: "Portas de rede inoperantes na bancada 04",
-      description: "Quatro pontos de rede da bancada 04 no Lab 02 não estão estabelecendo link de 1Gbps, causando perda de conexão nas máquinas de teste.",
-      target_type: "sala",
-      target_id: "lab-info-2",
-      target_name: "Lab de Informática 02 (Redes & Cloud)",
-      category: "rede",
-      priority: "media",
-      status: "em_analise",
-      requester_name: "Prof. Henrique Viana",
-      requester_email: "henrique.viana@sp.senai.br",
-      requester_role: "professor",
-      assigned_to: "Equipe de Infraestrutura",
-      room_location: "Bloco B - Lab 02",
-      solution_notes: null,
-      created_at: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
-    },
-    {
-      id: "inc-006",
-      code: "INC-2026-006",
-      title: "Projetor desliga após 10 minutos de exibição",
-      description: "O projetor da Sala 101 desliga sozinho acusando aviso de superaquecimento na lâmpada laser. Filtro de poeira necessita higienização.",
+      title: "Falta de cabos USB e display OLED quebrado no Kit Didático 03",
+      description: "Caixa do kit didático KIT-SENAI-03 devolvida ao armário sem o cabo de comunicação USB e com o display OLED danificado.",
       target_type: "equipamento",
-      target_id: "eq-proj-101",
-      target_name: "Projetor Laser Epson (PAT-SEN-00411)",
-      category: "audiovisual",
-      priority: "baixa",
-      status: "resolvido",
-      requester_name: "Profª. Silvia Neves",
-      requester_email: "silvia.neves@sp.senai.br",
-      requester_role: "professor",
-      assigned_to: "Carlos Roberto (Manutenção)",
-      room_location: "Sala 101 - Bloco A",
-      solution_notes: "Filtros de ar higienizados e duto de ventilação desobstruído. Testado por 2 horas ininterruptas.",
-      created_at: new Date(Date.now() - 120 * 3600 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-      resolved_at: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+      target_id: "kit-proj-03",
+      target_name: "Kit Didático Arduino (KIT-SENAI-03)",
+      category: "maker",
+      priority: "media",
+      status: "aberto",
+      requester_name: "Lucas Silva",
+      requester_email: "lucas.silva@aluno.senai.br",
+      requester_role: "aluno",
+      periodo: "noite",
+      modalidade: "CST",
+      turma: "CST ADS 3º Termo",
+      is_retirada: 1,
+      assigned_to: null,
+      room_location: "Laboratório de Projetos",
+      solution_notes: null,
+      orientacao_formal: null,
+      orientacao_gerada_em: null,
+      created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
     },
   ];
 
   for (const inc of incidentsList) {
     await db.execute({
-      sql: `INSERT INTO incidents (id, code, title, description, target_type, target_id, target_name, category, priority, status, requester_name, requester_email, requester_role, assigned_to, room_location, solution_notes, created_at, updated_at, resolved_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT OR REPLACE INTO incidents (
+        id, code, title, description, target_type, target_id, target_name,
+        category, priority, status, requester_name, requester_email, requester_role,
+        periodo, modalidade, turma, is_retirada, assigned_to, room_location,
+        solution_notes, orientacao_formal, orientacao_gerada_em, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         inc.id,
         inc.code,
@@ -469,42 +581,43 @@ async function seedInitialData() {
         inc.requester_name,
         inc.requester_email,
         inc.requester_role,
+        inc.periodo,
+        inc.modalidade,
+        inc.turma,
+        inc.is_retirada,
         inc.assigned_to,
         inc.room_location,
         inc.solution_notes,
+        inc.orientacao_formal,
+        inc.orientacao_gerada_em,
         inc.created_at,
         inc.updated_at,
-        inc.resolved_at || null,
       ],
     });
 
-    // Adiciona log inicial
     await db.execute({
-      sql: `INSERT INTO incident_history (id, incident_id, author_name, author_role, action_type, message, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT OR REPLACE INTO incident_history (id, incident_id, author_name, author_role, action_type, message, created_at)
+            VALUES (?, ?, ?, ?, 'registro_retirada', ?, ?)`,
       args: [
         `hist-${inc.id}-1`,
         inc.id,
         inc.requester_name,
         inc.requester_role,
-        "abertura",
-        "Chamado registrado no sistema de manutenção.",
+        `Ocorrência registrada no momento da retirada pelo ${inc.requester_role}: ${inc.title} (Turma: ${inc.turma} - ${inc.periodo?.toUpperCase()}).`,
         inc.created_at,
       ],
     });
 
-    if (inc.status === "resolvido") {
+    if (inc.orientacao_formal) {
       await db.execute({
-        sql: `INSERT INTO incident_history (id, incident_id, author_name, author_role, action_type, message, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT OR REPLACE INTO incident_history (id, incident_id, author_name, author_role, action_type, message, created_at)
+              VALUES (?, ?, ?, 'professor', 'orientacao_formal', ?, ?)`,
         args: [
           `hist-${inc.id}-2`,
           inc.id,
-          inc.assigned_to,
-          "tecnico",
-          "resolucao",
-          inc.solution_notes || "Problema solucionado com sucesso.",
-          inc.resolved_at,
+          "Prof. Carlos Roberto",
+          inc.orientacao_formal,
+          inc.orientacao_gerada_em,
         ],
       });
     }

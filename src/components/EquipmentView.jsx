@@ -11,6 +11,9 @@ import {
   Tag,
   Cpu,
   Layers,
+  Zap,
+  Activity,
+  Box,
 } from "lucide-react";
 
 export default function EquipmentView({
@@ -21,6 +24,7 @@ export default function EquipmentView({
 }) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("todas");
+  const [roomFilter, setRoomFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("todos");
 
   const filteredEquipment = equipment.filter((eq) => {
@@ -32,24 +36,28 @@ export default function EquipmentView({
       (eq.room_name && eq.room_name.toLowerCase().includes(search.toLowerCase()));
 
     const matchCategory = categoryFilter === "todas" || eq.category === categoryFilter;
+    const matchRoom = roomFilter === "todos" || eq.room_id === roomFilter || (eq.room_name && eq.room_name.includes(roomFilter));
     const matchStatus = statusFilter === "todos" || eq.status === statusFilter;
 
-    return matchSearch && matchCategory && matchStatus;
+    return matchSearch && matchCategory && matchRoom && matchStatus;
   });
 
   const getCategoryBadge = (category) => {
     const map = {
-      audiovisual: { label: "Audiovisual", color: "bg-indigo-100 text-indigo-800" },
-      climatizacao: { label: "Climatização", color: "bg-cyan-100 text-cyan-800" },
-      maker: { label: "Maker / 3D", color: "bg-amber-100 text-amber-800" },
-      rede: { label: "Redes & Infra", color: "bg-blue-100 text-blue-800" },
-      maquinario: { label: "Maquinário", color: "bg-slate-100 text-slate-800" },
-      eletrica: { label: "Elétrica", color: "bg-yellow-100 text-yellow-800" },
+      computador: { label: "Computador Desktop", color: "bg-blue-100 text-blue-800", icon: Cpu },
+      multimetro: { label: "Multímetro Digital", color: "bg-amber-100 text-amber-800", icon: Activity },
+      fonte_bancada: { label: "Fonte de Bancada", color: "bg-rose-100 text-rose-800", icon: Zap },
+      kit_didatico: { label: "Kit Didático IoT", color: "bg-emerald-100 text-emerald-800", icon: Box },
+      audiovisual: { label: "Audiovisual", color: "bg-indigo-100 text-indigo-800", icon: Layers },
+      maker: { label: "Maker / Prototipagem", color: "bg-purple-100 text-purple-800", icon: Wrench },
     };
 
-    const c = map[category] || { label: category, color: "bg-slate-100 text-slate-800" };
+    const c = map[category] || { label: category, color: "bg-slate-100 text-slate-800", icon: Wrench };
+    const Icon = c.icon;
+
     return (
-      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${c.color}`}>
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${c.color}`}>
+        <Icon className="w-3 h-3" />
         {c.label}
       </span>
     );
@@ -61,13 +69,13 @@ export default function EquipmentView({
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-200 gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Wrench className="w-6 h-6 text-red-700" />
+            <Cpu className="w-6 h-6 text-red-700" />
             <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-wide text-slate-900 font-heading">
-              Equipamentos Gerais & Laboratoriais
+              Computadores & Equipamentos de Bancada
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Controle de projetores, aparelhos de ar-condicionado, impressoras 3D, osciloscópios e ativos de TI.
+            Informática 4 (21 PCs), CNC (21 PCs) e Laboratório de Projetos (10 PCs + Multímetros, Fontes e Caixas de Kits Didáticos).
           </p>
         </div>
 
@@ -82,42 +90,139 @@ export default function EquipmentView({
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar por equipamento, patrimônio, sala ou série..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-sm focus:outline-hidden focus:ring-1 focus:ring-red-600 focus:bg-white text-slate-900"
-          />
+      {/* Summary KPI Cards of the Requested Labs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div
+          onClick={() => {
+            setRoomFilter("Informática 4");
+            setCategoryFilter("todas");
+          }}
+          className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
+            roomFilter === "Informática 4"
+              ? "bg-red-50/70 border-red-600 shadow-2xs ring-1 ring-red-600"
+              : "bg-white border-slate-200 hover:border-slate-300"
+          }`}
+        >
+          <div className="flex items-center justify-between text-xs font-bold uppercase text-slate-600 mb-1">
+            <span>Informática 4</span>
+            <Cpu className="w-4 h-4 text-blue-600" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 font-heading">
+            21 Computadores
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">Desktops Core i7 para desenvolvimento</p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div
+          onClick={() => {
+            setRoomFilter("Laboratório CNC");
+            setCategoryFilter("todas");
+          }}
+          className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
+            roomFilter === "Laboratório CNC"
+              ? "bg-red-50/70 border-red-600 shadow-2xs ring-1 ring-red-600"
+              : "bg-white border-slate-200 hover:border-slate-300"
+          }`}
+        >
+          <div className="flex items-center justify-between text-xs font-bold uppercase text-slate-600 mb-1">
+            <span>Laboratório CNC</span>
+            <Wrench className="w-4 h-4 text-orange-600" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 font-heading">
+            21 Computadores
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">Estações CAD/CAM e usinagem CNC</p>
+        </div>
+
+        <div
+          onClick={() => {
+            setRoomFilter("Laboratório de Projetos");
+            setCategoryFilter("todas");
+          }}
+          className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
+            roomFilter === "Laboratório de Projetos"
+              ? "bg-red-50/70 border-red-600 shadow-2xs ring-1 ring-red-600"
+              : "bg-white border-slate-200 hover:border-slate-300"
+          }`}
+        >
+          <div className="flex items-center justify-between text-xs font-bold uppercase text-slate-600 mb-1">
+            <span>Lab de Projetos</span>
+            <Activity className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 font-heading">
+            10 PCs + Bancadas
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">Multímetros, Fontes e Kits Didáticos IoT</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="relative col-span-1 sm:col-span-2 lg:col-span-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar por tag, equipamento, sala ou série..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-sm focus:outline-hidden focus:ring-1 focus:ring-red-600 focus:bg-white text-slate-900"
+            />
+          </div>
+
+          <select
+            value={roomFilter}
+            onChange={(e) => setRoomFilter(e.target.value)}
+            className="px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-sm text-slate-700"
+          >
+            <option value="todos">Todos os Ambientes</option>
+            <option value="Informática 4">Informática 4 (21 PCs)</option>
+            <option value="Laboratório CNC">Laboratório CNC (21 PCs)</option>
+            <option value="Laboratório de Projetos">Lab de Projetos (PCs, Multímetros, Fontes, Kits)</option>
+          </select>
+
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full sm:w-auto px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-sm text-slate-700 focus:outline-hidden focus:ring-1 focus:ring-red-600"
+            className="px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-sm text-slate-700"
           >
-            <option value="todas">Todas Categorias</option>
-            <option value="audiovisual">Audiovisual</option>
-            <option value="climatizacao">Climatização</option>
-            <option value="maker">Maker / 3D</option>
-            <option value="rede">Redes & TI</option>
+            <option value="todas">Todas as Categorias</option>
+            <option value="computador">Computadores Desktop</option>
+            <option value="multimetro">Multímetros Digitais</option>
+            <option value="fonte_bancada">Fontes de Bancada DC</option>
+            <option value="kit_didatico">Caixas de Kits Didáticos</option>
           </select>
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-auto px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-sm text-slate-700 focus:outline-hidden focus:ring-1 focus:ring-red-600"
+            className="px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-sm text-slate-700"
           >
             <option value="todos">Todos Status</option>
             <option value="disponivel">Disponível</option>
             <option value="em_manutencao">Em Manutenção</option>
-            <option value="defeituoso">Com Defeito</option>
+            <option value="defeituoso">Com Defeito / Avaria</option>
           </select>
+        </div>
+
+        <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+          <span>
+            Exibindo <strong>{filteredEquipment.length}</strong> de{" "}
+            <strong>{equipment.length}</strong> equipamentos
+          </span>
+          {(roomFilter !== "todos" || categoryFilter !== "todas" || statusFilter !== "todos" || search) && (
+            <button
+              onClick={() => {
+                setRoomFilter("todos");
+                setCategoryFilter("todas");
+                setStatusFilter("todos");
+                setSearch("");
+              }}
+              className="text-red-700 hover:underline font-semibold cursor-pointer"
+            >
+              Resetar filtros
+            </button>
+          )}
         </div>
       </div>
 
@@ -145,14 +250,14 @@ export default function EquipmentView({
                   {getCategoryBadge(eq.category)}
                 </div>
 
-                <p className="text-xs text-slate-600">
+                <p className="text-xs text-slate-600 line-clamp-2">
                   {eq.description || "Equipamento institucional de uso acadêmico."}
                 </p>
 
                 <div className="bg-slate-50 p-2.5 rounded border border-slate-100 space-y-1 text-xs text-slate-600">
                   <div className="flex items-center gap-1.5">
                     <DoorOpen className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-medium text-slate-800">{eq.room_name || "Sem sala fixa"}</span>
+                    <span className="font-medium text-slate-800">{eq.room_name}</span>
                   </div>
                   {eq.serial_number && (
                     <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono">
@@ -170,7 +275,7 @@ export default function EquipmentView({
                       : "bg-red-100 text-red-800"
                   }`}
                 >
-                  {eq.status === "disponivel" ? "Disponível" : "Em Manutenção"}
+                  {eq.status === "disponivel" ? "Disponível" : "Com Avaria / Reparo"}
                 </span>
 
                 <button

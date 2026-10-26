@@ -13,6 +13,8 @@ import {
   RefreshCw,
   Wrench,
   ChevronRight,
+  Laptop,
+  Cpu,
 } from "lucide-react";
 
 export default function RoomsView({
@@ -36,6 +38,35 @@ export default function RoomsView({
     return matchSearch && matchStatus;
   });
 
+  const getRoomEquipBadge = (room) => {
+    if (["sala-1", "sala-2", "sala-4", "sala-5"].includes(room.id)) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-800 px-2 py-0.5 rounded">
+          <Laptop className="w-3 h-3" /> 32 Notebooks
+        </span>
+      );
+    }
+    if (room.id === "lab-inf-4" || room.id === "lab-cnc") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+          <Cpu className="w-3 h-3" /> 21 Computadores
+        </span>
+      );
+    }
+    if (room.id === "lab-projetos") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+          <Wrench className="w-3 h-3" /> 10 PCs + Bancadas & Kits
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+        Sala Teórica
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -44,11 +75,11 @@ export default function RoomsView({
           <div className="flex items-center gap-2">
             <DoorOpen className="w-6 h-6 text-red-700" />
             <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-wide text-slate-900 font-heading">
-              Salas de Aula & Laboratórios
+              Salas & Ambientes de Aprendizagem
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Gestão da infraestrutura predial, laboratórios especializados e solicitações de reparo.
+            Salas 1, 2, 3, 4, 5, Informática 4, Projetos e CNC &bull; Gestão de infraestrutura predial e chamados de manutenção.
           </p>
         </div>
 
@@ -109,15 +140,7 @@ export default function RoomsView({
                       {room.name}
                     </h3>
                   </div>
-                  {room.status === "operacional" && Number(room.active_incidents) === 0 ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                      Operacional
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
-                      Atenção ({room.active_incidents} chamados)
-                    </span>
-                  )}
+                  {getRoomEquipBadge(room)}
                 </div>
 
                 <p className="text-xs text-slate-600 leading-relaxed">
