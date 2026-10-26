@@ -48,7 +48,7 @@ export default function StatsOverview({
   const equipment = stats?.equipment || { total: 63, em_manutencao: 3 };
   const recentIncidents = stats?.recentIncidents || [];
 
-  const isProfessor = currentUser?.role === "professor";
+  const isDocente = currentUser?.role === "docente" || currentUser?.role === "professor";
 
   const getPriorityBadge = (priority) => {
     switch (priority) {
@@ -148,7 +148,7 @@ export default function StatsOverview({
               <span>Registrar na Retirada</span>
             </button>
 
-            {isProfessor && (
+            {isDocente && (
               <button
                 onClick={() => onNavigateTab("turnos")}
                 className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-sm transition-colors cursor-pointer"

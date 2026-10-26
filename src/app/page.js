@@ -13,15 +13,19 @@ import IncidentDetailModal from "@/components/IncidentDetailModal";
 import NewNotebookModal from "@/components/NewNotebookModal";
 import StudentQuickIntakeModal from "@/components/StudentQuickIntakeModal";
 import TeacherOrientationModal from "@/components/TeacherOrientationModal";
+import LoginPage from "@/components/LoginPage";
 import { DEMO_USERS } from "@/lib/demoUsers";
 import { Database, ShieldCheck, CheckCircle2 } from "lucide-react";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  // Usuário Demo Ativo (Professor x Aluno)
-  const [currentUserKey, setCurrentUserKey] = useState("professor");
-  const currentUser = DEMO_USERS[currentUserKey];
+  // Sessão de Usuário (Docente x Aluno)
+  const [currentUserKey, setCurrentUserKey] = useState("docente");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  const currentUser = DEMO_USERS[currentUserKey] || DEMO_USERS.docente;
 
   // Data states
   const [stats, setStats] = useState(null);
@@ -54,6 +58,24 @@ export default function Home() {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(""), 5000);
   };
+
+  // Restaurar sessão ao carregar
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("senai_user_session");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.role === "docente" || parsed?.role === "aluno") {
+          setCurrentUserKey(parsed.role);
+          setIsLoggedIn(true);
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao carregar sessão:", e);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  }, []);
 
   // Carregar dados gerais
   const fetchAllData = useCallback(async () => {
@@ -91,8 +113,28 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+    if (isLoggedIn) {
+      fetchAllData();
+    }
+  }, [isLoggedIn, fetchAllData]);
+
+  // Login handler
+  const handleLoginSuccess = (user) => {
+    setCurrentUserKey(user.role);
+    setIsLoggedIn(true);
+    showToast(`Bem-vindo ao sistema, ${user.name}!`);
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem("senai_user_session");
+    } catch (e) {
+      console.error(e);
+    }
+    setIsLoggedIn(false);
+    showToast("Sessão finalizada com sucesso.");
+  };
 
   // Ações de abertura de chamados direcionados
   const handleOpenNewIncident = (targetType = "notebook", targetItem = null) => {
@@ -134,7 +176,7 @@ export default function Home() {
 
   const handleStudentIntakeSuccess = (newIncident) => {
     showToast(
-      `Protocolo ${newIncident.code} gerado! Sua turma está resguardada e os professores dos períodos foram notificados.`
+      `Protocolo ${newIncident.code} gerado! Sua turma está resguardada e os docentes foram notificados.`
     );
     fetchAllData();
   };
@@ -154,6 +196,32 @@ export default function Home() {
     fetchAllData();
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-3 border-red-700 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-xs font-semibold text-slate-500">Iniciando UniSENAI Manutenção...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se não estiver logado, exibe a tela de Login
+  if (!isLoggedIn) {
+    return (
+      <>
+        {toastMsg && (
+          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-md bg-slate-900 text-white shadow-xl border border-slate-700 animate-in slide-in-from-bottom-5 duration-200 max-w-md">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <span className="text-xs font-semibold leading-snug">{toastMsg}</span>
+          </div>
+        )}
+        <LoginPage onLoginSuccess={handleLoginSuccess} />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       {/* Toast Notification */}
@@ -164,7 +232,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Header Principal UniSENAI com User Switcher */}
+      {/* Header Principal UniSENAI com User Switcher e Logout */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -173,8 +241,14 @@ export default function Home() {
         currentUser={currentUser}
         onSwitchUser={(role) => {
           setCurrentUserKey(role);
-          showToast(`Sessão alternada para: ${DEMO_USERS[role].name} (${DEMO_USERS[role].badge})`);
+          try {
+            localStorage.setItem("senai_user_session", JSON.stringify(DEMO_USERS[role]));
+          } catch (e) {
+            console.error(e);
+          }
+          showToast(`Perfil ativo: ${DEMO_USERS[role].name}`);
         }}
+        onLogout={handleLogout}
         notebooksDefectCount={stats?.notebooks?.defeito || 0}
         openIncidentsCount={stats?.incidents?.abertos || 0}
       />
@@ -251,7 +325,7 @@ export default function Home() {
         currentUser={currentUser}
       />
 
-      {/* Modal: Emissão de Orientação Formal por Escrito (Para Professores) */}
+      {/* Modal: Emissão de Orientação Formal por Escrito (Para Docentes) */}
       <TeacherOrientationModal
         incident={incidentForOrientation}
         isOpen={isOrientationOpen}

@@ -16,6 +16,7 @@ import {
   X,
   GraduationCap,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 
 export default function Header({
@@ -25,13 +26,14 @@ export default function Header({
   onOpenStudentIntake,
   currentUser,
   onSwitchUser,
+  onLogout,
   notebooksDefectCount = 0,
   openIncidentsCount = 0,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  const isProfessor = currentUser?.role === "professor";
+  const isDocente = currentUser?.role === "docente";
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -49,7 +51,7 @@ export default function Header({
       badge: openIncidentsCount > 0 ? openIncidentsCount : null,
       badgeColor: "bg-amber-500 text-slate-900",
     },
-    ...(isProfessor
+    ...(isDocente
       ? [
           {
             id: "turnos",
@@ -132,7 +134,7 @@ export default function Header({
 
           {/* Right Action Buttons & User Switcher */}
           <div className="flex items-center gap-2">
-            {/* Demo User Switcher */}
+            {/* User Dropdown with Logout */}
             <div className="relative">
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
@@ -141,12 +143,12 @@ export default function Header({
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${currentUser.avatarColor}`}
                 >
-                  {currentUser.role === "professor" ? "P" : "A"}
+                  {currentUser.role === "docente" ? "D" : "A"}
                 </div>
                 <div className="hidden md:block leading-tight pr-1">
                   <div className="text-[11px] font-bold text-slate-800 flex items-center gap-1">
                     <span>{currentUser.name}</span>
-                    <span className="text-[10px] px-1 py-0.2 rounded font-bold uppercase bg-slate-200 text-slate-700">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded font-bold uppercase bg-slate-200 text-slate-700">
                       {currentUser.role}
                     </span>
                   </div>
@@ -159,23 +161,23 @@ export default function Header({
               {userDropdownOpen && (
                 <div className="absolute right-0 mt-1 w-64 bg-white rounded-md shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95">
                   <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                    Alternar Usuário Demo:
+                    Alternar Perfil:
                   </div>
 
                   <button
                     onClick={() => {
-                      onSwitchUser("professor");
+                      onSwitchUser("docente");
                       setUserDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2 text-xs flex items-start gap-2 hover:bg-slate-50 transition-colors ${
-                      currentUser.role === "professor" ? "bg-red-50/70 font-bold text-red-800" : "text-slate-700"
+                    className={`w-full text-left px-3 py-2 text-xs flex items-start gap-2 hover:bg-slate-50 transition-colors cursor-pointer ${
+                      currentUser.role === "docente" ? "bg-red-50/70 font-bold text-red-800" : "text-slate-700"
                     }`}
                   >
                     <div className="w-5 h-5 rounded-full bg-red-700 text-white flex items-center justify-center text-[10px] shrink-0 font-bold mt-0.5">
-                      P
+                      D
                     </div>
                     <div>
-                      <div className="font-bold">Prof. Carlos Roberto</div>
+                      <div className="font-bold">Docente</div>
                       <div className="text-[10px] text-slate-500">Docente & Coordenador (Diurno & Noturno)</div>
                     </div>
                   </button>
@@ -185,7 +187,7 @@ export default function Header({
                       onSwitchUser("aluno");
                       setUserDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2 text-xs flex items-start gap-2 hover:bg-slate-50 transition-colors ${
+                    className={`w-full text-left px-3 py-2 text-xs flex items-start gap-2 hover:bg-slate-50 transition-colors cursor-pointer ${
                       currentUser.role === "aluno" ? "bg-blue-50/70 font-bold text-blue-800" : "text-slate-700"
                     }`}
                   >
@@ -193,10 +195,23 @@ export default function Header({
                       A
                     </div>
                     <div>
-                      <div className="font-bold">Lucas Silva</div>
+                      <div className="font-bold">Aluno</div>
                       <div className="text-[10px] text-slate-500">Aluno CST ADS (Noturno)</div>
                     </div>
                   </button>
+
+                  <div className="pt-1.5 mt-1.5 border-t border-slate-100">
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        onLogout();
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 text-red-700 hover:bg-red-50 font-bold transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sair / Logout</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -280,6 +295,16 @@ export default function Header({
             >
               <Download className="w-4 h-4 text-slate-600" />
               <span>Exportar Relatório CSV</span>
+            </button>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onLogout();
+              }}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-700 bg-red-50 hover:bg-red-100 rounded-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sair / Logout</span>
             </button>
           </div>
         </div>
